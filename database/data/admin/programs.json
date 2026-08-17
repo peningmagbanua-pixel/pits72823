@@ -1,0 +1,12 @@
+[
+    {
+        "initials": "STE",
+        "name": "Science, Technology and Engineering",
+        "description": "Program for science, technology and engineering students."
+    },
+    {
+        "initials": "SPICT",
+        "name": "Special Program in Information and Communication Technology",
+        "description": "Program for students interested in information and communication technology."
+    }
+]

@@ -1,0 +1,130 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Http\Resources\Admin\ProgramResource;
+use Illuminate\Http\Request;
+use App\Models\Admin\Program;
+use App\Traits\AuditLogsTrait;
+use App\Enums\ActionType;
+
+class ProgramsController extends Controller
+{
+    use AuditLogsTrait;
+    public function index()
+    {
+        $paginate = request('paginate');
+        $search = request('search', '');
+        $sort_order = request('sort_order', 'desc');
+        $sort_field = request('sort_field', 'created_at');
+
+        if (!in_array($sort_order, ['asc', 'desc'])) {
+            $sort_order = 'desc';
+        }
+
+        if (!in_array($sort_field, ['id', 'initials', 'name', 'created_at'])) {
+            $sort_field = 'created_at';
+        }
+
+        $program = Program::search(trim($search))
+            ->orderBy($sort_field, $sort_order)
+            ->paginate($paginate);
+
+        return ProgramResource::collection($program);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'initials' => 'required',
+            'name' => 'required',
+            'description' => 'nullable',
+        ]);
+
+        $program = Program::where('initials', $validated['initials'])
+            ->where('name', $validated['name'])->first();
+
+        if ($program) {
+            return response()->json([
+                'message' => 'Duplicate program!',
+            ], 400);
+        }
+        
+        $program = Program::create([
+            'initials' => $validated['initials'],
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        $action = ActionType::Created->value;
+        $module = 'Programs';
+        $description = 'Created program ' . $validated['initials'] . ' - ' . $validated['name'];
+        $this->setAuditLog($action, $module, $description, null, $program->toArray());
+
+        return response()->json([
+            'message' => 'Program created successfully!'
+        ]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $program = Program::findOrFail($id);
+
+        if (!$program) {
+            return response()->json([
+                'message' => 'Program not found!'
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'initials' => 'required',
+            'name' => 'required',
+            'description' => 'nullable',
+            'status' => 'required'
+        ]);
+
+        $old_values = $program->getOriginal();
+
+        $program->update([
+            'initials' => $validated['initials'],
+            'name' => $validated['name'],
+            'description' => $validated['description'],
+            'is_active' => $validated['status'],
+        ]);
+
+        $action = ActionType::Updated->value;
+        $module = 'Programs';
+        $description = 'Updated program ' . $validated['initials'] . ' - ' . $validated['name'];
+        $this->setAuditLog($action, $module, $description, $old_values, $program->toArray());
+
+        return response()->json([
+            'message' => 'Program updated successfully!'
+        ]);
+    }
+
+    public function delete($id)
+    {
+        $program = Program::findOrFail($id);
+
+        if (!$program) {
+            return response()->json([
+                'message' => 'Program not found!'
+            ], 404);
+        }
+
+        $old_values = $program->getOriginal();
+        $program_name = $program->initials . ' - ' . $program->name;
+
+        if ($program->delete()) {
+            $action = ActionType::Deleted->value;
+            $module = 'Programs';
+            $description = 'Deleted program ' . $program_name;
+            $this->setAuditLog($action, $module, $description, $old_values, null);
+
+            return response()->json([
+                'message' => 'Program deleted successfully!'
+            ]);
+        }
+    }
+}

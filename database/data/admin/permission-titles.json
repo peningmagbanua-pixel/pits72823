@@ -1,0 +1,32 @@
+[
+    {
+        "name": "Applicant Accounts"
+    },
+    {
+        "name": "Applications"
+    },
+    {
+        "name": "Exam Scheduling"
+    },
+    {
+        "name": "School Years"
+    },
+    {
+        "name": "Programs"
+    },
+    {
+        "name": "Users"
+    },
+    {
+        "name": "Roles"
+    },
+    {
+        "name": "Permission Titles"
+    },
+    {
+        "name": "Reports"
+    },
+    {
+        "name": "Audit Logs"
+    }
+]

@@ -1,0 +1,39 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+}
+
+.card {
+    padding: 35px;
+    width: 100%;
+    max-width: 350px;
+    border-radius: 16px;
+}
+
+.text-muted {
+    font-size: 14px;
+}
+
+.form-label {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.card .form-control, .card .btn {
+    border-radius: 4px;
+}
+
+.hover-red:hover,
+.hover-red:focus {
+    background-color: #8B0000 !important;
+    border-color: #8B0000 !important;
+    color: #fff !important;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.btn-outline-danger.hover-red:hover,
+.btn-outline-danger.hover-red:focus {
+    background-color: #8B0000 !important;
+    color: #fff !important;
+}
