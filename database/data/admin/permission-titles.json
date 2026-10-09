@@ -1,18 +1,30 @@
 [
     {
+        "name": "Dashboard"
+    },
+    {
         "name": "Applicant Accounts"
     },
     {
         "name": "Applications"
     },
     {
+        "name": "Applicants"
+    },
+    {
         "name": "Exam Scheduling"
+    },
+    {
+        "name": "Academic Setup"
     },
     {
         "name": "School Years"
     },
     {
         "name": "Programs"
+    },
+    {
+        "name": "System Management"
     },
     {
         "name": "Users"
@@ -22,6 +34,12 @@
     },
     {
         "name": "Permission Titles"
+    },
+    {
+        "name": "Online Application"
+    },
+    {
+        "name": "Settings"
     },
     {
         "name": "Reports"

@@ -9,23 +9,25 @@ use Illuminate\Support\Facades\Storage;
 // Index
 Route::get('/', function () {
     return view('index');
-})->name('home');
+})->name('home')->middleware('maintenance');
 
 // Applicant Authentication Routes
-Route::get('/applicant/register', [Applicant\Auth\RegisterController::class, 'showRegistrationForm'])->name('applicant.register');
-Route::post('/applicant/register', [Applicant\Auth\RegisterController::class, 'register'])->name('applicant.register.submit');
+Route::middleware('maintenance')->group(function () {
+    Route::get('/applicant/register', [Applicant\Auth\RegisterController::class, 'showRegistrationForm'])->name('applicant.register');
+    Route::post('/applicant/register', [Applicant\Auth\RegisterController::class, 'register'])->name('applicant.register.submit');
 
-Route::get('/applicant/login', function () {
-    if (Auth::guard('applicant')->check()) {
-        return redirect()->route('applicant.dashboard');
-    }
+    Route::get('/applicant/login', function () {
+        if (Auth::guard('applicant')->check()) {
+            return redirect()->route('applicant.dashboard');
+        }
 
-    return view('applicant.auth.login');
-})->name('applicant.login');
+        return view('applicant.auth.login');
+    })->name('applicant.login');
 
-Route::post('/applicant/login', [Applicant\Auth\LoginController::class, 'login'])->name('applicant.login.submit');
-Route::get('applicant/auth/google', [Applicant\Auth\GoogleController::class, 'redirectToGoogle'])->name('applicant.google.redirect');
-Route::get('applicant/auth/google/callback', [Applicant\Auth\GoogleController::class, 'handleGoogleCallback']);
+    Route::post('/applicant/login', [Applicant\Auth\LoginController::class, 'login'])->name('applicant.login.submit');
+    Route::get('applicant/auth/google', [Applicant\Auth\GoogleController::class, 'redirectToGoogle'])->name('applicant.google.redirect');
+    Route::get('applicant/auth/google/callback', [Applicant\Auth\GoogleController::class, 'handleGoogleCallback']);
+});
 
 // Admin Authentication Routes
 Route::get('/admin/login', function () {
@@ -41,7 +43,7 @@ Route::get('auth/google', [Admin\Auth\GoogleController::class, 'redirectToGoogle
 Route::get('auth/google/callback', [Admin\Auth\GoogleController::class, 'handleGoogleCallback']);
 
 // Applicant Protected Routes
-Route::middleware('auth:applicant')->group(function () {
+Route::middleware(['auth:applicant', 'session-timeout:applicant', 'maintenance', 'must-change-password:applicant'])->group(function () {
     Route::post('/applicant/logout', [Applicant\Auth\LoginController::class, 'logout'])->name('applicant.logout');
 
     // Applicant Protected Pages
@@ -71,10 +73,22 @@ Route::middleware('auth:applicant')->group(function () {
         Route::put('/profile/update', [Applicant\ProfileController::class, 'updateProfile']);
         Route::put('/profile/change-password', [Applicant\ProfileController::class, 'changePassword']);
 
+        // Session Inactivity Timeout
+        Route::get('/session/status', [SessionTimeoutController::class, 'status']);
+        Route::post('/session/activity', [SessionTimeoutController::class, 'activity']);
+
+        // Programs
+        Route::get('/programs', [Applicant\ProgramsController::class, 'index']);
+
+        // Requirements
+        Route::get('/requirements', [Applicant\RequirementsController::class, 'index']);
+
         // Application Form
         Route::get('/dashboard', [Applicant\DashboardController::class, 'index']);
+        Route::get('/activity-logs', [Applicant\DashboardController::class, 'activityLogs']);
         Route::get('/application', [Applicant\ApplicationController::class, 'show']);
         Route::post('/application', [Applicant\ApplicationController::class, 'submit']);
+        Route::post('/application/select-program', [Applicant\ApplicationController::class, 'selectProgram']);
 
         // FAQ
         Route::get('/faqs', [Applicant\FaqController::class, 'index']);
@@ -82,7 +96,7 @@ Route::middleware('auth:applicant')->group(function () {
 });
 
 // Admin Protected Routes
-Route::middleware('auth:web')->group(function () {
+Route::middleware(['auth:web', 'session-timeout:web', 'must-change-password:web'])->group(function () {
     Route::post('/admin/logout', [Admin\Auth\LoginController::class, 'logout'])->name('admin.logout');
 
     // Admin Protected Pages
@@ -112,73 +126,109 @@ Route::middleware('auth:web')->group(function () {
         Route::get('/applicant-accounts', [Admin\ApplicantAccountsController::class, 'index'])->middleware('permission:browse applicant-accounts');
         Route::put('/applicant-accounts/{id}', [Admin\ApplicantAccountsController::class, 'update'])->middleware('permission:update applicant-accounts');
         Route::delete('/applicant-accounts/{id}', [Admin\ApplicantAccountsController::class, 'delete'])->middleware('permission:delete applicant-accounts');
+        Route::post('/applicant-accounts/{id}/restore', [Admin\ApplicantAccountsController::class, 'restore'])->middleware('permission:delete applicant-accounts');
 
         // Applicant Applications
         Route::get('/applicants', [Admin\ApplicantsController::class, 'index'])->middleware('permission:browse applications');
         Route::get('/applicants/print-approved', [Admin\ApplicantsController::class, 'printApproved'])->middleware('permission:browse applications');
-        Route::get('/applicants/{id}', [Admin\ApplicantsController::class, 'show'])->middleware('permission:browse applications');
+        Route::get('/applicants/{id}', [Admin\ApplicantsController::class, 'show'])->middleware('permission:read applicants');
         Route::put('/applicants/{id}/status', [Admin\ApplicantsController::class, 'updateStatus'])->middleware('permission:update applications');
-        Route::get('/applicants/{id}/activity-logs', [Admin\ApplicantsController::class, 'activityLogs'])->middleware('permission:browse applications');
+        Route::get('/applicants/{id}/activity-logs', [Admin\ApplicantsController::class, 'activityLogs'])->middleware('permission:read applicants');
 
         // Exam Scheduling
         Route::get('/exam-schedules', [Admin\ExamScheduleController::class, 'index'])->middleware('permission:browse exam-scheduling');
         Route::post('/exam-schedules', [Admin\ExamScheduleController::class, 'store'])->middleware('permission:create exam-scheduling');
         Route::put('/exam-schedules/{examSchedule}', [Admin\ExamScheduleController::class, 'update'])->middleware('permission:update exam-scheduling');
         Route::delete('/exam-schedules/{examSchedule}', [Admin\ExamScheduleController::class, 'destroy'])->middleware('permission:delete exam-scheduling');
+        Route::post('/exam-schedules/{id}/restore', [Admin\ExamScheduleController::class, 'restore'])->middleware('permission:delete exam-scheduling');
         Route::get('/unscheduled-applicants', [Admin\ExamScheduleController::class, 'getUnscheduledApplicants'])->middleware('permission:browse exam-scheduling');
         Route::post('/exam-schedules/auto-assign', [Admin\ExamScheduleController::class, 'autoAssign'])->middleware('permission:create exam-scheduling');
         Route::post('/exam-schedules/manual-assign', [Admin\ExamScheduleController::class, 'manualAssign'])->middleware('permission:create exam-scheduling');
         Route::get('/exam-schedules/{examSchedule}/applicants', [Admin\ExamScheduleController::class, 'getScheduleApplicants'])->middleware('permission:browse exam-scheduling');
 
         // Dashboard
-        Route::get('/dashboard/stats', [Admin\DashboardController::class, 'stats'])->middleware('permission:browse applications');
+        Route::get('/dashboard/stats', [Admin\DashboardController::class, 'stats'])->middleware('permission:browse dashboard');
 
         // Reports & Monitoring
         Route::get('/reports', [Admin\ReportsController::class, 'index'])->middleware('permission:browse reports');
+        Route::get('/reports/print', [Admin\ReportsController::class, 'printReport'])->middleware('permission:browse reports');
+        Route::get('/reports/print-approved', [Admin\ReportsController::class, 'printApproved'])->middleware('permission:browse reports');
+        Route::get('/reports/print-exam-schedule', [Admin\ReportsController::class, 'printExamSchedule'])->middleware('permission:browse reports');
         Route::get('/audit-logs', [Admin\AuditLogsController::class, 'index'])->middleware('permission:browse audit-logs');
-        Route::get('/activity-logs', [Admin\ActivityLogsController::class, 'index'])->middleware('permission:browse applications');
 
         // System Administration
         // Academic Management
-        Route::get('/school-years', [Admin\SchoolYearsController::class, 'index'])->middleware('permission:browse school-years');
+        Route::get('/school-years', [Admin\SchoolYearsController::class, 'index'])->middleware('permission:browse school-years|browse academic-setup');
         Route::post('/school-years', [Admin\SchoolYearsController::class, 'store'])->middleware('permission:create school-years');
         Route::put('/school-years/{id}', [Admin\SchoolYearsController::class, 'update'])->middleware('permission:update school-years');
         Route::delete('/school-years/{id}', [Admin\SchoolYearsController::class, 'delete'])->middleware('permission:delete school-years');
+        Route::post('/school-years/{id}/restore', [Admin\SchoolYearsController::class, 'restore'])->middleware('permission:delete school-years');
 
-        Route::get('/programs', [Admin\ProgramsController::class, 'index'])->middleware('permission:browse programs');
+        Route::get('/programs', [Admin\ProgramsController::class, 'index'])->middleware('permission:browse programs|browse academic-setup');
         Route::post('/programs', [Admin\ProgramsController::class, 'store'])->middleware('permission:create programs');
         Route::put('/programs/{id}', [Admin\ProgramsController::class, 'update'])->middleware('permission:update programs');
         Route::delete('/programs/{id}', [Admin\ProgramsController::class, 'delete'])->middleware('permission:delete programs');
+        Route::post('/programs/{id}/restore', [Admin\ProgramsController::class, 'restore'])->middleware('permission:delete programs');
 
         // System Management
-        Route::get('/users', [Admin\UsersController::class, 'index'])->middleware('role:System Administrator');
-        Route::get('/list/users', [Admin\UsersController::class, 'list'])->middleware('role:System Administrator');
-        Route::post('/users', [Admin\UsersController::class, 'store'])->middleware('role:System Administrator');
-        Route::put('/users/{id}', [Admin\UsersController::class, 'update'])->middleware('role:System Administrator');
-        Route::delete('/users/{id}', [Admin\UsersController::class, 'delete'])->middleware('role:System Administrator');
+        Route::get('/users', [Admin\UsersController::class, 'index'])->middleware('permission:browse users|browse system-management');
+        Route::get('/list/users', [Admin\UsersController::class, 'list'])->middleware('permission:read audit-logs');
+        Route::post('/users', [Admin\UsersController::class, 'store'])->middleware('permission:create users');
+        Route::put('/users/{id}', [Admin\UsersController::class, 'update'])->middleware('permission:update users');
+        Route::delete('/users/{id}', [Admin\UsersController::class, 'delete'])->middleware('permission:delete users');
+        Route::post('/users/{id}/restore', [Admin\UsersController::class, 'restore'])->middleware('permission:delete users');
 
-        Route::get('/roles', [Admin\RolesController::class, 'index'])->middleware('role:System Administrator');
-        Route::get('/list/roles', [Admin\RolesController::class, 'list'])->middleware('role:System Administrator');
-        Route::get('/all/roles', [Admin\RolesController::class, 'allRoles'])->middleware('role:System Administrator');
-        Route::get('/roles/permission-matrix', [Admin\RolesController::class, 'getPermissionMatrix'])->middleware('role:System Administrator');
-        Route::post('/roles', [Admin\RolesController::class, 'store'])->middleware('role:System Administrator');
-        Route::put('/roles/{id}', [Admin\RolesController::class, 'update'])->middleware('role:System Administrator');
-        Route::delete('/roles/{id}', [Admin\RolesController::class, 'delete'])->middleware('role:System Administrator');
-        Route::get('/roles/{id}/users', [Admin\RolesController::class, 'getRoleUsers'])->middleware('role:System Administrator');
+        Route::get('/roles', [Admin\RolesController::class, 'index'])->middleware('permission:browse roles|browse system-management');
+        Route::get('/list/roles', [Admin\RolesController::class, 'list'])->middleware('permission:browse users|browse system-management');
+        Route::get('/all/roles', [Admin\RolesController::class, 'allRoles'])->middleware('permission:browse users|browse system-management');
+        Route::get('/roles/permission-matrix', [Admin\RolesController::class, 'getPermissionMatrix'])->middleware('permission:browse roles|browse system-management');
+        Route::post('/roles', [Admin\RolesController::class, 'store'])->middleware('permission:create roles');
+        Route::put('/roles/{id}', [Admin\RolesController::class, 'update'])->middleware('permission:update roles');
+        Route::delete('/roles/{id}', [Admin\RolesController::class, 'delete'])->middleware('permission:delete roles');
+        Route::post('/roles/{id}/restore', [Admin\RolesController::class, 'restore'])->middleware('permission:delete roles');
+        Route::get('/roles/{id}/users', [Admin\RolesController::class, 'getRoleUsers'])->middleware('permission:browse roles|browse system-management');
 
-        Route::get('/roles/{id}/permissions', [Admin\PermissionsController::class, 'getRolePermissions'])->middleware('role:System Administrator');
-        Route::put('/roles/{id}/permissions', [Admin\PermissionsController::class, 'updateRolePermissions'])->middleware('role:System Administrator');
+        Route::get('/roles/{id}/permissions', [Admin\PermissionsController::class, 'getRolePermissions'])->middleware('permission:browse roles|browse system-management');
+        Route::put('/roles/{id}/permissions', [Admin\PermissionsController::class, 'updateRolePermissions'])->middleware('permission:update roles');
         Route::get('/check/{category}/permissions', [Admin\PermissionsController::class, 'checkPermissions']);
 
-        Route::get('/permission-titles', [Admin\PermissionTitlesController::class, 'index'])->middleware('role:System Administrator');
-        Route::post('/permission-titles', [Admin\PermissionTitlesController::class, 'store'])->middleware('role:System Administrator');
-        Route::put('/permission-titles/{id}', [Admin\PermissionTitlesController::class, 'update'])->middleware('role:System Administrator');
-        Route::delete('/permission-titles/{id}', [Admin\PermissionTitlesController::class, 'delete'])->middleware('role:System Administrator');
+        Route::get('/permission-titles', [Admin\PermissionTitlesController::class, 'index'])->middleware('permission:browse permission-titles|browse system-management');
+        Route::post('/permission-titles', [Admin\PermissionTitlesController::class, 'store'])->middleware('permission:create permission-titles');
+        Route::put('/permission-titles/{id}', [Admin\PermissionTitlesController::class, 'update'])->middleware('permission:update permission-titles');
+        Route::delete('/permission-titles/{id}', [Admin\PermissionTitlesController::class, 'delete'])->middleware('permission:delete permission-titles');
+        Route::post('/permission-titles/{id}/restore', [Admin\PermissionTitlesController::class, 'restore'])->middleware('permission:delete permission-titles');
+
+        // Landing Page Settings
+        Route::get('/landing-settings', [Admin\LandingSettingsController::class, 'index'])->middleware('permission:browse settings|browse system-management');
+        Route::get('/landing-settings/app-settings', [Admin\LandingSettingsController::class, 'getAppSettings'])->middleware('permission:browse settings|browse system-management');
+        Route::post('/landing-settings', [Admin\LandingSettingsController::class, 'update'])->middleware('permission:update settings');
+        Route::post('/landing-settings/app-settings', [Admin\LandingSettingsController::class, 'updateAppSettings'])->middleware('permission:update settings');
+        Route::post('/landing-settings/notifications', [Admin\LandingSettingsController::class, 'updateNotifications'])->middleware('permission:update settings');
+
+        // Applicant Requirements (Settings)
+        Route::get('/requirements', [Admin\RequirementsController::class, 'index'])->middleware('permission:browse settings|browse system-management');
+        Route::post('/requirements', [Admin\RequirementsController::class, 'store'])->middleware('permission:create settings');
+        Route::put('/requirements/{id}', [Admin\RequirementsController::class, 'update'])->middleware('permission:update settings');
+        Route::delete('/requirements/{id}', [Admin\RequirementsController::class, 'delete'])->middleware('permission:delete settings');
+
+        // Online Application Period (Settings)
+        Route::get('/application-period', [Admin\ApplicationPeriodController::class, 'show'])->middleware('permission:browse online-application|browse system-management');
+        Route::post('/application-period', [Admin\ApplicationPeriodController::class, 'update'])->middleware('permission:update online-application');
+
+        // Session Timeout Settings
+        Route::get('/session-timeout-settings', [Admin\SessionTimeoutSettingsController::class, 'show'])->middleware('permission:browse settings|browse system-management');
+        Route::post('/session-timeout-settings', [Admin\SessionTimeoutSettingsController::class, 'update'])->middleware('permission:update settings');
 
         Route::get('/profile', [Admin\ProfileController::class, 'profile']);
         Route::get('/profile/details', [Admin\ProfileController::class, 'getProfile']);
         Route::put('/profile/update', [Admin\ProfileController::class, 'updateProfile']);
         Route::put('/profile/change-password', [Admin\ProfileController::class, 'changePassword']);
+        Route::post('/profile/avatar', [Admin\ProfileController::class, 'uploadAvatar']);
+        Route::delete('/profile/avatar', [Admin\ProfileController::class, 'removeAvatar']);
+
+        // Session Inactivity Timeout
+        Route::get('/session/status', [SessionTimeoutController::class, 'status']);
+        Route::post('/session/activity', [SessionTimeoutController::class, 'activity']);
     });
 });
 

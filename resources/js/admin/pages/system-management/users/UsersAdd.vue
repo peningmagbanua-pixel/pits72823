@@ -5,7 +5,7 @@ import Swal from 'sweetalert2';
 import { sweetAlert } from '@/sweetalert.js';
 import { processingAlert } from '../../../../sweetalert';
 import { Modal } from 'bootstrap';
-import { ADMIN } from '../../../../constants';
+import { ADMIN, PROGRAM_ACCESS } from '../../../../constants';
 import { useAuthUserStore } from '../../../stores/AuthUserStore';
 import useUserForm from '../../../composables/forms/useUserForm';
 import useUserApi from '../../../composables/api/useUserApi';
@@ -63,6 +63,10 @@ const getRoles = () => {
 
 const isSystemAdministrator = () => {
     show.value = form.admin === ADMIN.YES ? false : true;
+    if (form.admin === ADMIN.YES) {
+        form.roles = [];
+        form.program_access = [];
+    }
 };
 
 const load = () => {
@@ -135,6 +139,15 @@ onMounted(() => {
                                 <label class="form-check-label">{{ role.name }}</label>
                             </div>
                             <span class="invalid-feedback d-block">{{ errors.role }}</span>
+                        </div>
+                        <div v-if="show || !authUserStore.user.view.system_administrator" class="form-group mt-3">
+                            <label class="form-label">Program Assignment</label>
+                            <div v-for="program in PROGRAM_ACCESS" :key="program.value" class="form-check">
+                                <input class="form-check-input" type="checkbox" :value="program.value" v-model="form.program_access">
+                                <label class="form-check-label">{{ program.label }}</label>
+                            </div>
+                            <small class="text-muted d-block">Assigned staff can only manage data for these
+                                programs.</small>
                         </div>
                         <hr>
                         <button type="submit" class="btn btn-primary btn-sm">

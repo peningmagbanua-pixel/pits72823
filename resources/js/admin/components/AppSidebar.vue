@@ -72,7 +72,7 @@ const logout = () => {
                     <li class="nav-header">
                         <i class="bi bi-house-fill me-1"></i> Main Menu
                     </li>
-                    <li class="nav-item">
+                    <li v-if="authUserStore.user.view.dashboard" class="nav-item">
                         <router-link
                             to="/admin/dashboard"
                             :class="{ active: isActive('/admin/dashboard') }"
@@ -123,7 +123,7 @@ const logout = () => {
                             </router-link>
                         </li>
                         <li
-                            v-if="authUserStore.user.view.applications"
+                            v-if="authUserStore.user.view.exam_scheduling"
                             class="nav-item"
                         >
                             <router-link
@@ -163,7 +163,10 @@ const logout = () => {
                                 <p>Reports</p>
                             </router-link>
                         </li>
-                        <li class="nav-item">
+                        <li
+                            v-if="authUserStore.user.view.audit_logs"
+                            class="nav-item"
+                        >
                             <router-link
                                 to="/admin/audit-logs"
                                 :class="{
@@ -175,21 +178,14 @@ const logout = () => {
                                 <p>Audit Logs</p>
                             </router-link>
                         </li>
-                        <li class="nav-item">
-                            <router-link
-                                to="/admin/activity-logs"
-                                :class="{
-                                    active: isActive('/admin/activity-logs'),
-                                }"
-                                class="nav-link"
-                            >
-                                <i class="nav-icon bi bi-person-lines-fill"></i>
-                                <p>Activity Logs</p>
-                            </router-link>
-                        </li>
                     </template>
 
-                    <template v-if="authUserStore.user.view.system_management">
+                    <template
+                        v-if="
+                            authUserStore.user.view.academic_setup ||
+                            authUserStore.user.view.system_management
+                        "
+                    >
                         <hr class="sidebar-divider" />
 
                         <!-- SYSTEM ADMINISTRATION -->
@@ -198,14 +194,18 @@ const logout = () => {
                             System Administration
                         </li>
 
-                        <li class="nav-item">
+                        <li
+                            v-if="authUserStore.user.view.academic_setup"
+                            class="nav-item"
+                            :class="{
+                                'menu-open': isActive('/admin/academic-setup'),
+                            }"
+                        >
                             <a
                                 href="#"
                                 class="nav-link"
                                 :class="{
-                                    'menu-open active': isActive(
-                                        '/admin/academic-setup',
-                                    ),
+                                    active: isActive('/admin/academic-setup'),
                                 }"
                             >
                                 <i class="nav-icon bi bi-mortarboard-fill"></i>
@@ -217,7 +217,10 @@ const logout = () => {
                                 </p>
                             </a>
                             <ul class="nav nav-treeview">
-                                <li class="nav-item">
+                                <li
+                                    v-if="authUserStore.user.view.school_years"
+                                    class="nav-item"
+                                >
                                     <router-link
                                         to="/admin/academic-setup/school-years"
                                         :class="{
@@ -233,7 +236,10 @@ const logout = () => {
                                         <p>School Years</p>
                                     </router-link>
                                 </li>
-                                <li class="nav-item">
+                                <li
+                                    v-if="authUserStore.user.view.programs"
+                                    class="nav-item"
+                                >
                                     <router-link
                                         to="/admin/academic-setup/programs"
                                         :class="{
@@ -252,14 +258,18 @@ const logout = () => {
                             </ul>
                         </li>
 
-                        <li class="nav-item">
+                        <li
+                            v-if="authUserStore.user.view.system_management"
+                            class="nav-item"
+                            :class="{
+                                'menu-open': isActive('/admin/system-management'),
+                            }"
+                        >
                             <a
                                 href="#"
                                 class="nav-link"
                                 :class="{
-                                    'menu-open active': isActive(
-                                        '/admin/system-management',
-                                    ),
+                                    active: isActive('/admin/system-management'),
                                 }"
                             >
                                 <i class="nav-icon bi bi-sliders"></i>
@@ -271,7 +281,10 @@ const logout = () => {
                                 </p>
                             </a>
                             <ul class="nav nav-treeview">
-                                <li class="nav-item">
+                                <li
+                                    v-if="authUserStore.user.view.users"
+                                    class="nav-item"
+                                >
                                     <router-link
                                         to="/admin/system-management/users"
                                         :class="{
@@ -287,7 +300,10 @@ const logout = () => {
                                         <p>Users</p>
                                     </router-link>
                                 </li>
-                                <li class="nav-item">
+                                <li
+                                    v-if="authUserStore.user.view.roles"
+                                    class="nav-item"
+                                >
                                     <router-link
                                         to="/admin/system-management/roles"
                                         :class="{
@@ -303,7 +319,10 @@ const logout = () => {
                                         <p>Roles</p>
                                     </router-link>
                                 </li>
-                                <li class="nav-item">
+                                <li
+                                    v-if="authUserStore.user.view.permission_titles"
+                                    class="nav-item"
+                                >
                                     <router-link
                                         to="/admin/system-management/permission-titles"
                                         :class="{
@@ -319,7 +338,10 @@ const logout = () => {
                                         <p>Permission Titles</p>
                                     </router-link>
                                 </li>
-                                <li class="nav-item">
+                                <li
+                                    v-if="authUserStore.user.view.settings"
+                                    class="nav-item"
+                                >
                                     <router-link
                                         to="/admin/system-management/settings"
                                         :class="{
@@ -344,13 +366,17 @@ const logout = () => {
                             Information
                         </li>
 
-                        <li class="nav-item">
+                        <li
+                            class="nav-item"
+                            :class="{
+                                'menu-open': isActive('/admin/about'),
+                            }"
+                        >
                             <a
                                 href="#"
                                 class="nav-link"
                                 :class="{
-                                    'menu-open active':
-                                        isActive('/admin/about'),
+                                    active: isActive('/admin/about'),
                                 }"
                             >
                                 <i class="nav-icon bi bi-info-circle"></i>

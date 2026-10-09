@@ -29,10 +29,14 @@ class PermissionMiddleware
             return $next($request);
         }
 
+        $required = array_map('trim', explode('|', $permission));
+
         $has_permissions = $user->roles
             ->flatMap(function ($role) {
                 return $role->permissions;
-            })->pluck('name')->contains($permission);
+            })->pluck('name')
+            ->intersect($required)
+            ->isNotEmpty();
 
         if (!$has_permissions) {
             abort(403, 'You do not have permission.');

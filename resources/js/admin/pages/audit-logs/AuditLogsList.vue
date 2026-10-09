@@ -1,27 +1,88 @@
 <script setup>
 import AuditLogsView from './AuditLogsView.vue';
-import { SORT, SORT_FIELD } from '../../../constants';
+import { SORT, SORT_FIELD, ACTION } from '../../../constants';
 import { onMounted, ref, watch } from "vue";
 import { Bootstrap5Pagination } from 'laravel-vue-pagination';
-import { useAuthUserStore } from '../../stores/AuthUserStore';
-import { ACTION } from '../../../constants';
 
-const authUserStore = useAuthUserStore();
 const paginate = ref(10);
 const search = ref('');
 const action = ref('');
 const user = ref('');
+const module = ref('');
+const dateFrom = ref('');
+const dateTo = ref('');
 const sort_order = ref(SORT.DESC);
 const sort_field = ref(SORT_FIELD.CREATED_AT);
 const auditLogs = ref([]);
+const loading = ref(true);
 const users = ref([]);
 const viewModal = ref(null);
+const permissions = ref({ read: false });
+
+const checkPermissions = async () => {
+    const response = await axios.get('/api/check/audit-logs/permissions');
+    permissions.value = response.data;
+};
+
+const actionOptions = [
+    { value: ACTION.CREATED, label: ACTION.CREATED },
+    { value: ACTION.UPDATED, label: ACTION.UPDATED },
+    { value: ACTION.DELETED, label: ACTION.DELETED },
+    { value: 'registered', label: 'Registered' },
+    { value: 'registered_via_google', label: 'Registered via Google' },
+    { value: 'logged_in', label: 'Logged In' },
+    { value: 'logged_in_via_google', label: 'Logged In via Google' },
+    { value: 'logged_out', label: 'Logged Out' },
+    { value: 'login_failed', label: 'Login Failed' },
+    { value: 'login_failed_inactive', label: 'Login Attempt (Inactive)' },
+    { value: 'viewed_dashboard', label: 'Viewed Dashboard' },
+    { value: 'viewed_application', label: 'Viewed Application' },
+    { value: 'application_submitted', label: 'Application Submitted' },
+    { value: 'profile_updated', label: 'Profile Updated' },
+    { value: 'viewed_applicants', label: 'Viewed Applicants' },
+    { value: 'status_approved', label: 'Application Approved' },
+    { value: 'status_rejected', label: 'Application Rejected' },
+    { value: 'status_reset', label: 'Status Reset to Pending' },
+    { value: 'approved_application', label: 'Approved Application' },
+    { value: 'rejected_application', label: 'Rejected Application' },
+    { value: 'reset_application_status', label: 'Reset Application Status' },
+    { value: 'created_program', label: 'Created Program' },
+    { value: 'updated_program', label: 'Updated Program' },
+    { value: 'deleted_program', label: 'Deleted Program' },
+    { value: 'created_school_year', label: 'Created School Year' },
+    { value: 'updated_school_year', label: 'Updated School Year' },
+    { value: 'deleted_school_year', label: 'Deleted School Year' },
+    { value: 'created_exam_schedule', label: 'Created Exam Schedule' },
+    { value: 'updated_exam_schedule', label: 'Updated Exam Schedule' },
+    { value: 'deleted_exam_schedule', label: 'Deleted Exam Schedule' },
+    { value: 'auto_assigned_exam_schedule', label: 'Auto-Assigned Exam Schedule' },
+    { value: 'manual_assigned_exam_schedule', label: 'Manual-Assigned Exam Schedule' },
+    { value: 'updated_applicant_account', label: 'Updated Applicant Account' },
+    { value: 'deleted_applicant_account', label: 'Deleted Applicant Account' },
+];
+
+const moduleOptions = [
+    'Applicant Accounts',
+    'Applicants',
+    'Applications',
+    'Authentication',
+    'Dashboard',
+    'Exam Scheduling',
+    'Permission Titles',
+    'Profile',
+    'Programs',
+    'Role Permissions',
+    'Roles',
+    'School Years',
+    'Users',
+];
 
 const viewLog = (log) => {
     viewModal.value.getAuditLog(log);
 };
 
 const getAuditLogs = (page = 1) => {
+    loading.value = true;
     axios.get('/api/audit-logs', {
         params: {
             page: page,
@@ -29,11 +90,16 @@ const getAuditLogs = (page = 1) => {
             search: search.value,
             user: user.value,
             action: action.value,
+            module: module.value,
+            date_from: dateFrom.value,
+            date_to: dateTo.value,
             sort_order: sort_order.value,
             sort_field: sort_field.value
         }
     }).then((response) => {
         auditLogs.value = response.data;
+    }).finally(() => {
+        loading.value = false;
     });
 }
 
@@ -46,7 +112,7 @@ const clickSort = (field) => {
     getAuditLogs();
 };
 
-watch([paginate, search, action, user], () => {
+watch([paginate, search, action, user, module, dateFrom, dateTo], () => {
     getAuditLogs();
 });
 
@@ -54,11 +120,14 @@ const getUsers = () => {
     axios.get('/api/list/users')
         .then((response) => {
             users.value = response.data;
-        })
+        });
 }
 
-onMounted(() => {
-    getUsers();
+onMounted(async () => {
+    await checkPermissions();
+    if (permissions.value.read) {
+        getUsers();
+    }
     getAuditLogs();
 });
 </script>
@@ -84,25 +153,48 @@ onMounted(() => {
                 <div class="col-lg-12" style="font-size: 13px;">
                     <div class="card shadow-sm border-0 mb-2">
                         <div class="card-body">
-                           <div class="row g-2">
+                           <div class="d-flex flex-wrap align-items-end gap-2">
 
-                                <div v-if="authUserStore.user.view.system_administrator" class="col-12 col-sm-6 col-md-3">
-                                    <label for="action" class="form-label small mb-1">Users</label>
-                                    <select v-model="user" id="action" class="form-select form-select-sm">
+                                <div v-if="permissions.read">
+                                    <label for="user-select" class="form-label small mb-1">Users</label>
+                                    <select v-model="user" id="user-select" class="form-select form-select-sm" style="max-width: 150px;">
                                         <option value="">All</option>
-                                        <option v-for="user in users" :value="user.id" :key="user.id">{{ user.firstname }} {{ user.lastname }}</option>
+                                        <option v-for="option in users" :value="option.id" :key="option.id">{{ option.firstname }} {{ option.lastname }}</option>
                                     </select>
                                 </div>
 
-                                <div class="col-12 col-sm-6 col-md-3">
-                                    <label for="action" class="form-label small mb-1">Actions</label>
-                                    <select v-model="action" id="action"
-                                        class="form-select form-select-sm">
+                                <div>
+                                    <label for="action-select" class="form-label small mb-1">Actions</label>
+                                    <select v-model="action" id="action-select"
+                                        class="form-select form-select-sm" style="max-width: 200px;">
                                         <option value="">All</option>
-                                        <option :value="ACTION.CREATED">Created</option>
-                                        <option :value="ACTION.UPDATED">Updated</option>
-                                        <option :value="ACTION.DELETED">Deleted</option>
+                                        <option v-for="opt in actionOptions" :key="opt.value" :value="opt.value">
+                                            {{ opt.label }}
+                                        </option>
                                     </select>
+                                </div>
+
+                                <div>
+                                    <label for="module-select" class="form-label small mb-1">Module</label>
+                                    <select v-model="module" id="module-select"
+                                        class="form-select form-select-sm" style="max-width: 180px;">
+                                        <option value="">All</option>
+                                        <option v-for="opt in moduleOptions" :key="opt" :value="opt">
+                                            {{ opt }}
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label for="date-from" class="form-label small mb-1">Date From</label>
+                                    <input v-model="dateFrom" id="date-from" type="date"
+                                        class="form-control form-control-sm" style="max-width: 150px;">
+                                </div>
+
+                                <div>
+                                    <label for="date-to" class="form-label small mb-1">Date To</label>
+                                    <input v-model="dateTo" id="date-to" type="date"
+                                        class="form-control form-control-sm" style="max-width: 150px;">
                                 </div>
 
                             </div>
@@ -153,17 +245,28 @@ onMounted(() => {
                                             <th class="text-center align-middle">Action</th>
                                             <th class="text-center align-middle">Module</th>
                                             <th class="text-center align-middle">Description</th>
-                                            <th v-if="authUserStore.user.view.system_administrator" class="text-center align-middle">Action/s</th>
+                                            <th class="text-center align-middle">Action/s</th>
                                         </tr>
                                     </thead>
-                                    <tbody v-if="auditLogs.meta && auditLogs.meta.total > 0" class="">
+                                    <tbody v-if="loading">
+                                        <tr>
+                                            <td colspan="7" class="text-center">
+                                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                                Loading ...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tbody v-else-if="auditLogs.data && auditLogs.data.length > 0">
                                         <tr v-for="(log, index) in auditLogs.data" :key="log.id">
-                                            <td class="text-center align-middle">{{ index + 1 }}</td>
+                                            <td class="text-center align-middle">{{ (auditLogs.current_page - 1) * paginate + index + 1 }}</td>
                                             <td class="text-center align-middle">{{ log.created_at }}</td>
                                             <td class="align-middle">
                                                 <span><img :src="log.avatar || '/images/default.jpeg'" width="30"
                                                         class="rounded-5 shadow-sm me-2" alt="Profile"></span>
-                                                {{ log.user }}
+                                                <div class="d-inline-flex flex-column align-items-start">
+                                                    <span>{{ log.user }}</span>
+                                                    <small class="text-muted">{{ log.actor_email || '—' }}</small>
+                                                </div>
                                             </td>
                                             <td class="text-center align-middle">
                                                 <span :class="log.action_color">
@@ -176,7 +279,7 @@ onMounted(() => {
                                                 </span>
                                             </td>
                                             <td class="align-middle">{{ log.description }}</td>
-                                            <td  v-if="authUserStore.user.view.system_administrator" class="text-center align-middle">
+                                            <td class="text-center align-middle">
                                                 <button class="btn btn-info btn-sm"
                                                     @click="viewLog(log)" data-bs-toggle="modal"
                                                     data-bs-target="#view-audit-log">
@@ -193,10 +296,10 @@ onMounted(() => {
                                 </table>
                             </div>
 
-                            <div v-if="auditLogs.meta && auditLogs.meta.total > 0" class="row mt-3">
+                            <div v-if="auditLogs.total > 0" class="row mt-3">
                                 <div class="col-md-6">
-                                    Showing {{ auditLogs.meta.from }} to {{ auditLogs.meta.to }} of {{
-                                    auditLogs.meta.total.toLocaleString() }} entries
+                                    Showing {{ auditLogs.from }} to {{ auditLogs.to }} of {{
+                                    auditLogs.total.toLocaleString() }} entries
                                 </div>
 
                                 <div class="col-md-6">

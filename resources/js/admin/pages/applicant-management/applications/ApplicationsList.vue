@@ -1,11 +1,14 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { Bootstrap5Pagination } from 'laravel-vue-pagination';
 import { SORT, SORT_FIELD, escapeHtml } from '../../../../constants';
 import ApplicantViewModal from '../applicants/ApplicantViewModal.vue';
+import { useAuthUserStore } from '../../../stores/AuthUserStore';
+
+const authUserStore = useAuthUserStore();
 
 const applicants   = ref([]);
-const loading      = ref(false);
+const loading      = ref(true);
 const search       = ref('');
 const programFilter = ref('');
 const statusFilter  = ref('');
@@ -13,6 +16,43 @@ const sortField    = ref(SORT_FIELD.CREATED_AT);
 const sortOrder    = ref(SORT.DESC);
 const paginate     = ref(10);
 const viewModalRef = ref(null);
+const permissions   = ref([]);
+const applicantPermissions = ref([]);
+
+const checkPermissions = async () => {
+    try {
+        const response = await axios.get('/api/check/applications/permissions');
+        permissions.value = response.data;
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+const checkApplicantPermissions = async () => {
+    try {
+        const response = await axios.get('/api/check/applicants/permissions');
+        applicantPermissions.value = response.data;
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+const allowedPrograms = computed(() => authUserStore.user?.programs ?? []);
+const programs = ref([]);
+
+const fetchPrograms = async () => {
+    try {
+        const response = await axios.get('/api/programs', { params: { paginate: 100 } });
+        programs.value = response.data.data || response.data;
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+const programOptions = computed(() => {
+    if (allowedPrograms.value.length === 0) return programs.value;
+    return programs.value.filter(p => allowedPrograms.value.includes(p.initials));
+});
 
 const fetchApplicants = async (page = 1) => {
     loading.value = true;
@@ -24,7 +64,7 @@ const fetchApplicants = async (page = 1) => {
             sort_field: sortField.value,
             sort_order: sortOrder.value,
         };
-        if (programFilter.value) params.program = programFilter.value;
+        if (programFilter.value) params.program_id = programFilter.value;
         if (statusFilter.value)  params.status = statusFilter.value;
 
         const res = await axios.get('/api/applicants', { params });
@@ -38,6 +78,14 @@ const fetchApplicants = async (page = 1) => {
 
 watch([paginate, search, programFilter, statusFilter], () => fetchApplicants(1));
 
+// Staff restricted to a single program always see that program's applications.
+watch(allowedPrograms, (progs) => {
+    if (progs.length === 1 && !programFilter.value) {
+        const program = programs.value.find(p => p.initials === progs[0]);
+        programFilter.value = program?.id ?? '';
+    }
+}, { immediate: true });
+
 const clickSort = (field) => {
     if (sortField.value === field) {
         sortOrder.value = sortOrder.value === SORT.ASC ? SORT.DESC : SORT.ASC;
@@ -50,7 +98,7 @@ const clickSort = (field) => {
 const printApproved = async () => {
     try {
         const params = {};
-        if (programFilter.value) params.program = programFilter.value;
+        if (programFilter.value) params.program_id = programFilter.value;
 
         const res = await axios.get('/api/applicants/print-approved', { params });
         const data = res.data;
@@ -118,7 +166,11 @@ const statusBadge = (status) => ({
     pending:  'bg-warning-subtle text-warning',
 }[status] ?? 'bg-secondary-subtle text-secondary');
 
-onMounted(() => fetchApplicants());
+onMounted(async () => {
+    await Promise.all([checkPermissions(), checkApplicantPermissions()]);
+    await fetchPrograms();
+    fetchApplicants();
+});
 </script>
 <template>
     <div class="app-content-header">
@@ -140,11 +192,10 @@ onMounted(() => fetchApplicants());
         <div class="container-fluid">
             <div class="d-flex justify-content-between mb-2">
                 <div class="d-flex align-items-center gap-2">
-                    <label class="form-label small mb-0">Program:</label>
-                    <select v-model="programFilter" class="form-select form-select-sm" style="width: auto;">
+                    <label v-if="allowedPrograms.length !== 1" class="form-label small mb-0">Program:</label>
+                    <select v-if="allowedPrograms.length !== 1" v-model="programFilter" class="form-select form-select-sm" style="width: auto;">
                         <option value="">All Programs</option>
-                        <option value="SPICT">SPICT</option>
-                        <option value="STE">STE</option>
+                        <option v-for="prog in programOptions" :key="prog.id" :value="prog.id">{{ prog.initials }}</option>
                     </select>
                     <label class="form-label small mb-0 ms-2">Status:</label>
                     <select v-model="statusFilter" class="form-select form-select-sm" style="width: auto;">
@@ -170,16 +221,18 @@ onMounted(() => fetchApplicants());
                                                 <option value="75">75</option>
                                                 <option value="100">100</option>
                                             </select>
-                                            <label for="paginate" class="text-nowrap ms-2 mb-0 form-label">entries per page</label>
+                                            <label for="paginate" class="text-nowrap ms-2 mb-0 form-label">entries per
+                                                page</label>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6"></div>
-                                <div class="col-md-3">
-                                    <div class="d-flex align-items-center gap-1">
-                                        <button class="btn btn-outline-secondary btn-sm flex-shrink-0" @click="printApproved" title="Print Approved Applicants">
-                                            <i class="bi bi-printer"></i>
-                                        </button>
+
+                                <div class="col-md-7">
+
+                                </div>
+
+                                <div class="col-md-2">
+                                    <div class="d-flex align-items-center">
                                         <input v-model.lazy="search" type="search" class="form-control form-control-sm" placeholder="Search">
                                     </div>
                                 </div>
@@ -211,7 +264,15 @@ onMounted(() => fetchApplicants());
                                             <th class="align-middle text-center">Action/s</th>
                                         </tr>
                                     </thead>
-                                    <tbody v-if="applicants.meta && applicants.meta.total > 0">
+                                    <tbody v-if="loading">
+                                        <tr>
+                                            <td colspan="7" class="text-center">
+                                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                                Loading ...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tbody v-else-if="applicants.meta && applicants.meta.total > 0">
                                         <tr v-for="(a, index) in applicants.data" :key="a.id">
                                             <td class="align-middle text-center">{{ (applicants.meta.current_page - 1) * paginate + index + 1 }}</td>
                                             <td class="align-middle text-center">{{ a.created_at }}</td>
@@ -230,9 +291,9 @@ onMounted(() => fetchApplicants());
                                                 </span>
                                             </td>
                                             <td class="align-middle text-center">
-                                                <button class="btn btn-secondary btn-sm"
+                                                <button v-if="applicantPermissions.read" class="btn btn-info btn-sm"
                                                     @click="openViewModal(a)" title="View Application">
-                                                    <i class="bi bi-eye-fill me-1"></i>View
+                                                    <i class="bi bi-eye-fill"></i>
                                                 </button>
                                             </td>
                                         </tr>
@@ -260,5 +321,5 @@ onMounted(() => fetchApplicants());
             </div>
         </div>
     </div>
-    <ApplicantViewModal ref="viewModalRef" @status-updated="fetchApplicants(applicants.meta.current_page)" />
+    <ApplicantViewModal ref="viewModalRef" :can-update="permissions.update" @status-updated="fetchApplicants(applicants.meta.current_page)" />
 </template>

@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use App\Models\Admin\User;
 use App\Traits\AuditLogsTrait;
 use App\Traits\ConstantsTrait;
 use App\Enums\ActionType;
+use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
@@ -25,9 +27,12 @@ class ProfileController extends Controller
         $roles = $auth_user->roles->pluck('name')->toArray();
 
         $view = [
+            'dashboard' => $auth_user->can('browse dashboard'),
+
             // Admissions
             'applicant_accounts' => $auth_user->can('browse applicant-accounts'),
             'applications' => $auth_user->can('browse applications'),
+            'applicants' => $auth_user->can('read applicants'),
 
             'admissions' =>
                 $auth_user->can('browse applicant-accounts') ||
@@ -45,17 +50,24 @@ class ProfileController extends Controller
             // Academic Setup
             'school_years' => $auth_user->can('browse school-years'),
             'programs' => $auth_user->can('browse programs'),
+            'academic_setup' => $auth_user->can('browse academic-setup') ||
+                $auth_user->can('browse school-years') ||
+                $auth_user->can('browse programs'),
 
             // System Management
             'users' => $auth_user->can('browse users'),
             'roles' => $auth_user->can('browse roles'),
             'permission_titles' => $auth_user->can('browse permission-titles'),
-            
-            'system_management' =>
-                $auth_user->hasRole([$this->SYSTEM_ADMINISTRATOR]) ||
+            'online_application' => $auth_user->can('browse online-application'),
+            'settings' => $auth_user->can('browse settings') ||
+                $auth_user->can('browse online-application'),
+
+            'system_management' => $auth_user->can('browse system-management') ||
                 $auth_user->can('browse users') ||
                 $auth_user->can('browse roles') ||
-                $auth_user->can('browse permission-titles'),
+                $auth_user->can('browse permission-titles') ||
+                $auth_user->can('browse settings') ||
+                $auth_user->can('browse online-application'),
 
             'system_administrator' => $auth_user->hasRole([$this->SYSTEM_ADMINISTRATOR]),
         ];
@@ -65,7 +77,11 @@ class ProfileController extends Controller
             'email' => $auth_user->email,
             'avatar' => $auth_user->avatar,
             'roles' => $roles,
+            'programs' => $auth_user->hasRole([$this->SYSTEM_ADMINISTRATOR])
+                ? ['SPICT', 'STE']
+                : $auth_user->programCodes(),
             'view' => $view,
+            'must_change_password' => (bool) $auth_user->must_change_password,
         ];
     }
 
@@ -97,7 +113,7 @@ class ProfileController extends Controller
             'firstname' => 'required|string|max:255',
             'middlename' => 'nullable|string|max:255',
             'extname' => 'nullable|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
+            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($user->id)->whereNull('deleted_at')],
         ]);
 
         $old_values = $user->getOriginal();
@@ -138,6 +154,7 @@ class ProfileController extends Controller
 
         $user->update([
             'password' => bcrypt($validated['new_password']),
+            'must_change_password' => false,
         ]);
 
         $action = ActionType::Updated->value;
@@ -147,6 +164,54 @@ class ProfileController extends Controller
 
         return response()->json([
             'message' => 'Password changed successfully!',
+        ]);
+    }
+
+    public function uploadAvatar(Request $request)
+    {
+        $auth_user = $this->callLoggedUser();
+        $user = User::findOrFail($auth_user->id);
+
+        $request->validate([
+            'avatar' => 'required|image|mimes:png,jpg,jpeg|max:2048',
+        ]);
+
+        // Delete old avatar if exists
+        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+
+        $path = $request->file('avatar')->store('avatars', 'public');
+
+        $user->update([
+            'avatar' => $path,
+        ]);
+
+        $this->logAdminActivity('updated_avatar', 'Updated profile avatar.');
+
+        return response()->json([
+            'message' => 'Avatar updated successfully!',
+            'avatar' => $path,
+        ]);
+    }
+
+    public function removeAvatar(Request $request)
+    {
+        $auth_user = $this->callLoggedUser();
+        $user = User::findOrFail($auth_user->id);
+
+        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+
+        $user->update([
+            'avatar' => null,
+        ]);
+
+        $this->logAdminActivity('removed_avatar', 'Removed profile avatar.');
+
+        return response()->json([
+            'message' => 'Avatar removed successfully!',
         ]);
     }
 }

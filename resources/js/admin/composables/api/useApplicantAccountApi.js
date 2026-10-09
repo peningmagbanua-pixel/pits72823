@@ -12,4 +12,12 @@ export default {
     deleteApplicantAccount(id) {
         return axios.delete(`/api/applicant-accounts/${id}`);
     },
+
+    restoreApplicantAccount(id) {
+        return axios.post(`/api/applicant-accounts/${id}/restore`);
+    },
+
+    checkPermissions() {
+        return axios.get('/api/check/applicant-accounts/permissions');
+    },
 }

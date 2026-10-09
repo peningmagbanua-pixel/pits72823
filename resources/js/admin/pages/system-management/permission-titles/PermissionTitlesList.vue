@@ -13,6 +13,8 @@ const search           = ref('');
 const sort_order       = ref(SORT.DESC);
 const sort_field       = ref(SORT_FIELD.CREATED_AT);
 const permissionTitles = ref([]);
+const loading          = ref(true);
+const showDeleted      = ref(false);
 const editModal        = ref(null);
 
 const editPermissionTitle = (permissionTitle) => {
@@ -20,6 +22,7 @@ const editPermissionTitle = (permissionTitle) => {
 };
 
 const getPermissionTitles = async (page = 1) => {
+    loading.value = true;
     try {
         const response = await usePermissionTitleApi.getPermissionTitles({
             page,
@@ -27,10 +30,13 @@ const getPermissionTitles = async (page = 1) => {
             search: search.value,
             sort_order: sort_order.value,
             sort_field: sort_field.value,
+            deleted: showDeleted.value ? 1 : 0,
         });
         permissionTitles.value = response.data;
     } catch (error) {
         console.error(error);
+    } finally {
+        loading.value = false;
     }
 };
 
@@ -43,7 +49,7 @@ const clickSort = (field) => {
     getPermissionTitles();
 };
 
-watch([paginate, search], () => {
+watch([paginate, search, showDeleted], () => {
     getPermissionTitles();
 });
 
@@ -74,7 +80,46 @@ const deletePermissionTitle = (id) => {
     });
 };
 
+const restorePermissionTitle = (id) => {
+    Swal.fire({
+        title: "Are you sure?",
+        text: "You are about to restore this record!",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Yes, restore it!",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+    }).then((result) => {
+        if (result.isConfirmed) {
+            deletingAlert();
+            usePermissionTitleApi.restorePermissionTitle(id)
+                .then((response) => {
+                    Swal.close();
+                    sweetAlert('success', response.data.message);
+                    getPermissionTitles();
+                }).catch((error) => {
+                    Swal.close();
+                    sweetAlert('error', error.response.data.message);
+                });
+        }
+    });
+};
+
+const permissions = ref([]);
+
+const checkPermissions = async () => {
+    try {
+        const response = await usePermissionTitleApi.checkPermissions();
+        permissions.value = response.data;
+    } catch (error) {
+        console.error(error);
+    }
+};
+
 onMounted(() => {
+    checkPermissions();
     getPermissionTitles();
 });
 </script>
@@ -99,9 +144,18 @@ onMounted(() => {
         <div class="container-fluid">
            <div class="d-flex justify-content-between mb-2">
                 <div class="d-flex">
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#new-permission-title">
+                    <button v-if="permissions.create" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#new-permission-title">
                         <i class="bi bi-plus-circle me-1"></i>New Permission Title
                     </button>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <label class="form-label small mb-0">View:</label>
+                    <select v-model="showDeleted" class="form-select form-select-sm" style="width: auto;">
+                        <option :value="false">Active</option>
+                        <option :value="true">Deleted</option>
+                    </select>
                 </div>
             </div>
             <div class="row">
@@ -124,9 +178,7 @@ onMounted(() => {
                                     </div>
                                 </div>
 
-                                <div class="col-md-7">
-                              
-                                </div>
+                                <div class="col-md-7"></div>
 
                                 <div class="col-md-2">
                                     <div class="d-flex align-items-center">
@@ -152,7 +204,15 @@ onMounted(() => {
                                             <th class="text-center align-middle">Action/s</th>
                                         </tr>
                                     </thead>
-                                    <tbody v-if="permissionTitles.meta && permissionTitles.meta.total > 0">
+                                    <tbody v-if="loading">
+                                        <tr>
+                                            <td colspan="5" class="text-center">
+                                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                                Loading ...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tbody v-else-if="permissionTitles.meta && permissionTitles.meta.total > 0">
                                         <tr v-for="(permissionTitle, index) in permissionTitles.data" :key="permissionTitle.id">
                                             <td class="text-center align-middle">{{ index + 1 }}</td>
                                             <td class="text-center align-middle">{{ permissionTitle.created_at }}</td>
@@ -161,15 +221,23 @@ onMounted(() => {
                                                 <span class="badge bg-primary-subtle text-primary">{{ permissionTitle.permissions_count }}</span>
                                             </td>
                                             <td class="text-center align-middle">
-                                                <button class="btn btn-secondary btn-sm me-1"
-                                                    @click="editPermissionTitle(permissionTitle)"
-                                                    data-bs-toggle="modal" data-bs-target="#update-permission-title">
-                                                    <i class="bi bi-pencil-square"></i>
-                                                </button>
-                                                <button type="button" class="btn btn-danger btn-sm"
-                                                    @click="deletePermissionTitle(permissionTitle.id)">
-                                                    <i class="bi bi-trash-fill"></i>
-                                                </button>
+                                                <template v-if="showDeleted">
+                                                    <button v-if="permissions.delete" type="button" class="btn btn-success btn-sm"
+                                                        @click="restorePermissionTitle(permissionTitle.id)">
+                                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                                    </button>
+                                                </template>
+                                                <template v-else>
+                                                    <button v-if="permissions.update" class="btn btn-secondary btn-sm me-1"
+                                                        @click="editPermissionTitle(permissionTitle)"
+                                                        data-bs-toggle="modal" data-bs-target="#update-permission-title">
+                                                        <i class="bi bi-pencil-square"></i>
+                                                    </button>
+                                                    <button v-if="permissions.delete" type="button" class="btn btn-danger btn-sm"
+                                                        @click="deletePermissionTitle(permissionTitle.id)">
+                                                        <i class="bi bi-trash-fill"></i>
+                                                    </button>
+                                                </template>
                                             </td>
                                         </tr>
                                     </tbody>

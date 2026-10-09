@@ -1,25 +1,56 @@
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { Bootstrap5Pagination } from 'laravel-vue-pagination';
 import axios from "axios";
 import Swal from "sweetalert2";
 import { Modal } from "bootstrap";
-import { escapeHtml } from "../../../../constants";
+import { escapeHtml, resolveAssetUrl, waitForImages, formatProgramName } from "../../../../constants";
+import { processingAlert } from "../../../../sweetalert";
+import { useAuthUserStore } from '../../../stores/AuthUserStore';
+
+const authUserStore = useAuthUserStore();
+const allowedPrograms = computed(() => authUserStore.user?.programs ?? []);
+const canAccess = (program) => allowedPrograms.value.includes(program);
 
 const paginate = ref(10);
 const search = ref('');
-const schedules = ref([]);
+const showDeleted = ref(false);
+const schedules = ref({
+    data: [],
+    links: {},
+    meta: {
+        total: 0,
+        current_page: 1,
+        from: 0,
+        to: 0,
+        last_page: 1,
+        per_page: 10
+    }
+});
+
+const pageMeta = computed(() => schedules.value.meta ?? {
+    total: 0,
+    current_page: 1,
+    from: 0,
+    to: 0,
+    last_page: 1,
+    per_page: paginate.value
+});
+const schoolYears = ref([]);
+const programs = ref([]);
 const selectedApplicants = ref([]);
 const selectedScheduleId = ref(null);
-const loading = ref(false);
+const loading = ref(true);
 const applicants = ref([]);
+const applicantsLoading = ref(false);
 const submitting = ref(false);
 let scheduleModalInstance = null;
 let manualAssignModalInstance = null;
 
 const scheduleForm = ref({
     id: null,
-    program: "STE",
+    school_year_id: '',
+    program_id: '',
     date: "",
     time_slot: "",
     room: "",
@@ -28,16 +59,67 @@ const scheduleForm = ref({
 
 const isEditing = ref(false);
 
+const activeSchoolYear = computed(() => schoolYears.value.find(sy => sy.is_active) || null);
+
+const formSchoolYearId = computed(() => {
+    if (isEditing.value) {
+        return scheduleForm.value.school_year_id ?? '';
+    }
+    return activeSchoolYear.value?.id ?? '';
+});
+
+const formSchoolYearLabel = computed(() => {
+    if (isEditing.value) {
+        const own = scheduleForm.value.school_year_id
+            ? schoolYears.value.find(sy => sy.id === scheduleForm.value.school_year_id)
+            : null;
+        return own?.school_year_name
+            || scheduleForm.value.school_year_name
+            || '—';
+    }
+    if (activeSchoolYear.value) {
+        return `${activeSchoolYear.value.school_year_name} (Active)`;
+    }
+    return 'No active school year';
+});
+
+const steProgram = computed(() => programs.value.find(p => p.initials === 'STE'));
+const spictProgram = computed(() => programs.value.find(p => p.initials === 'SPICT'));
+const steProgramId = computed(() => steProgram.value?.id);
+const spictProgramId = computed(() => spictProgram.value?.id);
+
+const fetchPrograms = async () => {
+    try {
+        const response = await axios.get("/api/programs", {
+            params: { paginate: 100 }
+        });
+        programs.value = response.data.data || response.data;
+    } catch (error) {
+        console.error("Error fetching programs:", error);
+    }
+};
+
+const fetchSchoolYears = async () => {
+    try {
+        const response = await axios.get("/api/school-years", {
+            params: { paginate: 100 }
+        });
+        schoolYears.value = response.data.data || response.data;
+    } catch (error) {
+        console.error("Error fetching school years:", error);
+    }
+};
+
 const fetchSchedules = async (page = 1) => {
     loading.value = true;
     try {
-        const response = await axios.get("/api/exam-schedules", {
-            params: {
-                paginate: paginate.value,
-                page,
-                search: search.value,
-            }
-        });
+        const params = {
+            paginate: paginate.value,
+            page,
+            search: search.value,
+            deleted: showDeleted.value ? 1 : 0,
+        };
+        const response = await axios.get("/api/exam-schedules", { params });
         schedules.value = response.data;
     } catch (error) {
         console.error("Error fetching schedules:", error);
@@ -46,31 +128,50 @@ const fetchSchedules = async (page = 1) => {
     }
 };
 
-watch([paginate, search], () => {
+watch([paginate, search, showDeleted], () => {
     fetchSchedules();
 });
 
-const fetchUnscheduledApplicants = async () => {
+const fetchUnscheduledApplicants = async (scheduleId = null) => {
+    applicantsLoading.value = true;
     try {
-        const response = await axios.get("/api/unscheduled-applicants");
+        const params = scheduleId ? { schedule_id: scheduleId } : {};
+        const response = await axios.get("/api/unscheduled-applicants", { params });
         applicants.value = response.data;
     } catch (error) {
         console.error("Error fetching applicants:", error);
+    } finally {
+        applicantsLoading.value = false;
     }
 };
 
 const submitSchedule = async () => {
     if (submitting.value) return;
+
+    if (!isEditing.value && !activeSchoolYear.value) {
+        Swal.fire(
+            "Warning",
+            "No active school year found. Please activate a school year first.",
+            "warning",
+        );
+        return;
+    }
+
+    const payload = {
+        ...scheduleForm.value,
+        school_year_id: formSchoolYearId.value,
+    };
+
     submitting.value = true;
     try {
         if (isEditing.value) {
             await axios.put(
                 `/api/exam-schedules/${scheduleForm.value.id}`,
-                scheduleForm.value,
+                payload,
             );
             Swal.fire("Success", "Schedule updated successfully!", "success");
         } else {
-            await axios.post("/api/exam-schedules", scheduleForm.value);
+            await axios.post("/api/exam-schedules", payload);
             Swal.fire("Success", "Schedule created successfully!", "success");
         }
         resetForm();
@@ -98,8 +199,35 @@ const submitSchedule = async () => {
 const openManualAssign = (schedule) => {
     selectedScheduleId.value = schedule.id;
     selectedApplicants.value = [];
+    fetchUnscheduledApplicants(schedule.id);
     if (manualAssignModalInstance) {
         manualAssignModalInstance.show();
+    }
+};
+
+const closeManualAssignModal = () => {
+    const el = document.getElementById("manualAssignModal");
+    if (!el) return;
+    const inst = Modal.getInstance(el) || manualAssignModalInstance;
+    if (inst) {
+        inst.hide();
+    }
+    if (el.classList.contains("show")) {
+        try {
+            inst?.dispose();
+        } catch (e) {
+            // ignore — instance may already be broken
+        }
+        el.classList.remove("show");
+        el.style.display = "none";
+        el.setAttribute("aria-hidden", "true");
+        el.removeAttribute("aria-modal");
+        el.removeAttribute("role");
+        document.querySelectorAll(".modal-backdrop").forEach(b => b.remove());
+        document.body.classList.remove("modal-open");
+        document.body.style.overflow = "";
+        document.body.style.paddingRight = "";
+        manualAssignModalInstance = new Modal(el);
     }
 };
 
@@ -113,18 +241,19 @@ const assignApplicants = async () => {
         return;
     }
 
+    processingAlert('.btn');
     try {
         await axios.post("/api/exam-schedules/manual-assign", {
             applicant_ids: selectedApplicants.value,
             schedule_id: selectedScheduleId.value,
         });
+        Swal.close();
         Swal.fire("Success", "Applicants assigned successfully!", "success");
-        if (manualAssignModalInstance) {
-            manualAssignModalInstance.hide();
-        }
+        closeManualAssignModal();
         fetchSchedules();
-        fetchUnscheduledApplicants();
+        fetchUnscheduledApplicants(selectedScheduleId.value);
     } catch (error) {
+        Swal.close();
         const validationErrors = error.response?.data?.errors
             ? Object.values(error.response.data.errors).flat().join(" ")
             : null;
@@ -134,6 +263,7 @@ const assignApplicants = async () => {
             validationErrors ||
                 error.response?.data?.message ||
                 "Assignment failed.",
+            "error",
         );
     }
 };
@@ -163,10 +293,36 @@ const editSchedule = (schedule) => {
     }
 };
 
+const closeScheduleModal = () => {
+    const el = document.getElementById("scheduleModal");
+    if (!el) return;
+    const inst = Modal.getInstance(el) || scheduleModalInstance;
+    if (inst) {
+        inst.hide();
+    }
+    if (el.classList.contains("show")) {
+        try {
+            inst?.dispose();
+        } catch (e) {
+            // ignore — instance may already be broken
+        }
+        el.classList.remove("show");
+        el.style.display = "none";
+        el.setAttribute("aria-hidden", "true");
+        el.removeAttribute("aria-modal");
+        el.removeAttribute("role");
+        document.querySelectorAll(".modal-backdrop").forEach(b => b.remove());
+        document.body.classList.remove("modal-open");
+        document.body.style.overflow = "";
+        document.body.style.paddingRight = "";
+        scheduleModalInstance = new Modal(el);
+    }
+};
+
 const deleteSchedule = async (id) => {
     const result = await Swal.fire({
-        title: "Are you sure?",
-        text: "You won't be able to revert this!",
+        title: "Delete Schedule?",
+        text: "This will remove the schedule from this list. Applicants assigned to it will remain listed in Reports \u2192 Exam Schedule.",
         icon: "warning",
         showCancelButton: true,
         confirmButtonColor: "#d33",
@@ -175,12 +331,40 @@ const deleteSchedule = async (id) => {
     });
 
     if (result.isConfirmed) {
+        processingAlert('.btn');
         try {
             await axios.delete(`/api/exam-schedules/${id}`);
+            Swal.close();
             Swal.fire("Deleted!", "Schedule has been deleted.", "success");
             fetchSchedules();
         } catch (error) {
+            Swal.close();
             Swal.fire("Error", "Failed to delete schedule.", "error");
+        }
+    }
+};
+
+const restoreSchedule = async (id) => {
+    const result = await Swal.fire({
+        title: "Restore Schedule?",
+        text: "This will return the schedule to the active scheduling list.",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Yes, restore it!",
+    });
+
+    if (result.isConfirmed) {
+        processingAlert('.btn');
+        try {
+            await axios.post(`/api/exam-schedules/${id}/restore`);
+            Swal.close();
+            Swal.fire("Restored!", "Schedule has been restored.", "success");
+            fetchSchedules();
+        } catch (error) {
+            Swal.close();
+            Swal.fire("Error", error.response?.data?.message || "Failed to restore schedule.", "error");
         }
     }
 };
@@ -191,58 +375,102 @@ const printSchedule = async (schedule) => {
         const { schedule: sched, applicants } = res.data;
 
         const rows = applicants.map((a, i) =>
-            `<tr><td>${i + 1}</td><td>${escapeHtml(a.firstname)} ${escapeHtml(a.lastname)}</td><td>${escapeHtml(a.email)}</td><td>${escapeHtml(a.program)}</td></tr>`
+            `<tr><td>${i + 1}</td><td>${escapeHtml(a.firstname)} ${escapeHtml(a.lastname)}</td><td>${escapeHtml(a.email)}</td></tr>`
         ).join('');
 
-        const printWin = window.open('', '_blank');
-        printWin.document.write(`
-            <!DOCTYPE html>
-            <html><head>
-                <title>Approved Applicants - ${escapeHtml(sched.program)}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; padding: 40px; }
-                    h2 { text-align: center; margin-bottom: 5px; }
-                    .subtitle { text-align: center; color: #555; margin-bottom: 30px; }
-                    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                    .info-table td { border: 1px solid #999; padding: 8px 12px; }
-                    .info-table td:first-child { font-weight: bold; width: 20%; background: #f5f5f5; }
-                    table.applicants { width: 100%; border-collapse: collapse; }
-                    table.applicants th, table.applicants td { border: 1px solid #999; padding: 8px 12px; text-align: left; }
-                    table.applicants th { background: #2c3e50; color: #fff; }
-                    table.applicants tr:nth-child(even) { background: #f9f9f9; }
-                    .print-btn { text-align: center; margin-bottom: 20px; }
-                    @media print { .print-btn { display: none; } }
-                </style>
+        const baseStyle = `
+            @page {
+                margin:15mm;
+                @top-left { content:""; }
+                @top-center { content:""; }
+                @top-right { content:""; }
+                @bottom-left { content:""; }
+                @bottom-center { content:""; }
+                @bottom-right { content:""; }
+            }
+            * { margin:0; padding:0; box-sizing:border-box; }
+            body { font-family:Arial,sans-serif; font-size:12px; padding:0; color:#111; }
+            .header { display:flex; align-items:center; justify-content:center; gap:10px; text-align:center; margin-bottom:14px; }
+            .logo { width:80px; height:80px; flex-shrink:0; }
+            .logo2 { height:64px; width:auto; flex-shrink:0; }
+            .header-text { }
+            .school { font-size:15px; font-weight:bold; }
+            .address { font-size:11px; color:#555; margin-top:2px; }
+            .report-title { font-size:14px; font-weight:bold; margin-top:8px; text-transform:uppercase; letter-spacing:.5px; }
+            .meta { font-size:11px; color:#666; margin-top:3px; }
+            hr { border:none; border-top:2px solid #333; margin:8px 0 14px; }
+            .info-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px; }
+            .info-table td { border: 1px solid #999; padding: 8px 12px; }
+            .info-table td:first-child { font-weight: bold; width: 20%; background: #f5f5f5; }
+            table.applicants { width: 100%; border-collapse: collapse; }
+            table.applicants th, table.applicants td { border: 1px solid #ccc; padding: 6px 10px; vertical-align: middle; }
+            table.applicants th { background: #333; color: #fff; font-size: 11px; font-weight: 600; }
+            table.applicants td { font-size: 12px; }
+            table.applicants tr:nth-child(even) td { background: #f7f7f7; }
+            .tc { text-align: center; }`;
+
+        const headerHtml = `
+            <div class="header">
+                <img class="logo" src="${resolveAssetUrl('cnhs_logo.png')}" alt="CNHS Logo">
+                <div class="header-text">
+                    <div class="school">Carranglan National High School</div>
+                    <div class="address">Quezon Street, F.C. Otic Poblacion (Brgy. II), Carranglan, Nueva Ecija</div>
+                    <div class="report-title">Exam Schedule - ${escapeHtml(formatProgramName(sched.program))}</div>
+                    <div class="meta">${escapeHtml(sched.date)} • ${escapeHtml(sched.time_slot)} • Room: ${escapeHtml(sched.room)}</div>
+                </div>
+                <img class="logo2" src="${resolveAssetUrl('deped.webp')}" alt="DepEd Logo">
+            </div>
+            <hr>`;
+
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+            <title>Exam Schedule - ${escapeHtml(formatProgramName(sched.program))}</title>
+            <style>${baseStyle}</style>
             </head><body>
-                <div class="print-btn"><button onclick="window.print()">Print</button></div>
-                <h2>Carranglan National High School</h2>
-                <p class="subtitle">Approved Applicants — ${escapeHtml(sched.program)} (${escapeHtml(sched.date)})</p>
-                <table class="info-table">
-                    <tr><td>Program</td><td>${escapeHtml(sched.program)}</td></tr>
-                    <tr><td>Date</td><td>${escapeHtml(sched.date)}</td></tr>
-                    <tr><td>Time</td><td>${escapeHtml(sched.time_slot)}</td></tr>
-                    <tr><td>Room</td><td>${escapeHtml(sched.room)}</td></tr>
-                    <tr><td>Capacity</td><td>${escapeHtml(sched.capacity)}</td></tr>
-                    <tr><td>Assigned</td><td>${applicants.length} / ${escapeHtml(sched.capacity)}</td></tr>
-                </table>
-                <table class="applicants">
-                    <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Program</th></tr></thead>
-                    <tbody>${rows || '<tr><td colspan="4" style="text-align:center">No approved applicants assigned.</td></tr>'}</tbody>
-                </table>
-            </body></html>
-        `);
+            ${headerHtml}
+            <table class="info-table">
+                <tr><td>Program</td><td>${escapeHtml(formatProgramName(sched.program))}</td></tr>
+                <tr><td>Date</td><td>${escapeHtml(sched.date)}</td></tr>
+                <tr><td>Time</td><td>${escapeHtml(sched.time_slot)}</td></tr>
+                <tr><td>Room</td><td>${escapeHtml(sched.room)}</td></tr>
+                <tr><td>Capacity</td><td>${escapeHtml(sched.capacity)}</td></tr>
+                <tr><td>Assigned</td><td>${applicants.length} / ${escapeHtml(sched.capacity)}</td></tr>
+            </table>
+            <table class="applicants">
+                <thead>
+                    <tr>
+                        <th class="tc" style="width:45px;">#</th>
+                        <th>Name</th>
+                        <th style="width:45%;">Email</th>
+                    </tr>
+                </thead>
+                <tbody>${rows || '<tr><td colspan="3" class="tc" style="padding:18px;">No approved applicants assigned.</td></tr>'}</tbody>
+            </table>
+            </body></html>`;
+
+        const printWin = window.open('', '_blank');
+        if (!printWin) {
+            Swal.fire('Pop-up Blocked', 'Please allow pop-ups for this site, then try printing again.', 'warning');
+            return;
+        }
+        printWin.document.write(html);
         printWin.document.close();
+        await waitForImages(printWin);
+        printWin.focus();
+        printWin.print();
     } catch (error) {
         console.error('Print failed:', error);
         Swal.fire('Error', 'Failed to load applicants for printing.', 'error');
     }
 };
 
-const resetForm = () => {
+const resetForm = async () => {
     isEditing.value = false;
+    // Refresh so the field always reflects the current active school year
+    await fetchSchoolYears();
     scheduleForm.value = {
         id: null,
-        program: "STE",
+        school_year_id: activeSchoolYear.value?.id ?? '',
+        program_id: programs.value[0]?.id ?? '',
         date: "",
         time_slot: "",
         room: "",
@@ -250,21 +478,32 @@ const resetForm = () => {
     };
 };
 
-const autoAssign = async (program) => {
+const autoAssign = async (programId) => {
+    const activeSY = schoolYears.value.find(sy => sy.is_active);
+    if (!activeSY) {
+        Swal.fire('Error', 'No active school year found. Please contact the administrator.', 'error');
+        return;
+    }
+
+    const program = programs.value.find(p => p.id === programId);
+    const programName = program ? program.initials : programId;
+
     const result = await Swal.fire({
         title: "Auto Assign?",
-        text: `Assign all unscheduled ${program} applicants to available slots?`,
+        text: `Assign all unscheduled ${programName} applicants to available slots in ${activeSY.school_year_name}?`,
         icon: "question",
         showCancelButton: true,
         confirmButtonText: "Yes, assign",
     });
 
     if (result.isConfirmed) {
+        processingAlert('.btn');
         try {
             const response = await axios.post(
                 "/api/exam-schedules/auto-assign",
-                { program },
+                { program_id: programId, school_year_id: activeSY.id },
             );
+            Swal.close();
             Swal.fire("Success", response.data.message, "success");
             fetchSchedules();
             fetchUnscheduledApplicants();
@@ -273,6 +512,7 @@ const autoAssign = async (program) => {
                 ? Object.values(error.response.data.errors).flat().join(" ")
                 : null;
 
+            Swal.close();
             Swal.fire(
                 "Error",
                 validationErrors ||
@@ -284,7 +524,21 @@ const autoAssign = async (program) => {
     }
 };
 
-onMounted(() => {
+const permissions = ref([]);
+
+const checkPermissions = async () => {
+    try {
+        const response = await axios.get('/api/check/exam-scheduling/permissions');
+        permissions.value = response.data;
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+onMounted(async () => {
+    checkPermissions();
+    await fetchPrograms();
+    await fetchSchoolYears();
     fetchSchedules();
     fetchUnscheduledApplicants();
 
@@ -321,17 +575,27 @@ onMounted(() => {
         <div class="container-fluid">
             <div class="d-flex justify-content-between mb-2">
                 <div class="d-flex align-items-center gap-2">
-                    <button class="btn btn-primary btn-sm" @click="resetForm" data-bs-toggle="modal" data-bs-target="#scheduleModal">
+                    <button v-if="permissions.create" class="btn btn-primary btn-sm" @click="resetForm" data-bs-toggle="modal" data-bs-target="#scheduleModal">
                         <i class="bi bi-plus-circle me-1"></i>Create Schedule
                     </button>
-                    <button class="btn btn-outline-primary btn-sm" @click="autoAssign('STE')">
+                    <button v-if="permissions.update && canAccess('STE')" class="btn btn-outline-primary btn-sm" @click="autoAssign(steProgramId)">
                         <i class="bi bi-lightning-fill me-1"></i>Auto Assign STE
                     </button>
-                    <button class="btn btn-outline-primary btn-sm" @click="autoAssign('SPICT')">
+                    <button v-if="permissions.update && canAccess('SPICT')" class="btn btn-outline-primary btn-sm" @click="autoAssign(spictProgramId)">
                         <i class="bi bi-lightning-fill me-1"></i>Auto Assign SPICT
                     </button>
                 </div>
             </div>
+            <div class="d-flex justify-content-between mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <label class="form-label small mb-0">View:</label>
+                    <select v-model="showDeleted" class="form-select form-select-sm" style="width: auto;">
+                        <option :value="false">Active</option>
+                        <option :value="true">Deleted</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="row">
                 <div class="col-lg-12" style="font-size: 13px;">
                     <div class="card shadow-sm border-0">
@@ -363,6 +627,7 @@ onMounted(() => {
                                     <thead>
                                         <tr>
                                             <th class="align-middle text-center">#</th>
+                                            <th class="align-middle text-center">School Year</th>
                                             <th class="align-middle text-center">Program</th>
                                             <th class="align-middle text-center">Date</th>
                                             <th class="align-middle text-center">Time</th>
@@ -372,9 +637,21 @@ onMounted(() => {
                                             <th class="align-middle text-center">Action/s</th>
                                         </tr>
                                     </thead>
-                                    <tbody v-if="schedules.total > 0">
+                                    <tbody v-if="loading">
+                                        <tr>
+                                            <td colspan="9" class="text-center">
+                                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                                Loading ...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tbody v-else-if="pageMeta.total > 0">
                                         <tr v-for="(schedule, index) in schedules.data" :key="schedule.id">
-                                            <td class="align-middle text-center">{{ (schedules.current_page - 1) * paginate + index + 1 }}</td>
+                                            <td class="align-middle text-center">{{ (pageMeta.current_page - 1) * paginate + index + 1 }}</td>
+                                            <td class="align-middle text-center">
+                                                <span v-if="schedule.school_year_name">{{ schedule.school_year_name }}</span>
+                                                <span v-else class="text-muted">Unassigned</span>
+                                            </td>
                                             <td class="align-middle text-center">{{ schedule.program }}</td>
                                             <td class="align-middle text-center">{{ schedule.date }}</td>
                                             <td class="align-middle text-center">{{ schedule.time_slot }}</td>
@@ -382,32 +659,39 @@ onMounted(() => {
                                             <td class="align-middle text-center">{{ schedule.capacity }}</td>
                                             <td class="align-middle text-center">{{ schedule.applicants_count }} / {{ schedule.capacity }}</td>
                                             <td class="align-middle text-center">
-                                                <button class="btn btn-secondary btn-sm me-1" @click="openManualAssign(schedule)" title="Assign Applicants">
-                                                    <i class="bi bi-person-plus"></i>
-                                                </button>
-                                                <button class="btn btn-secondary btn-sm me-1" @click="editSchedule(schedule)">
-                                                    <i class="bi bi-pencil-square"></i>
-                                                </button>
-                                                <button class="btn btn-outline-secondary btn-sm me-1" @click="printSchedule(schedule)" title="Print Approved Applicants">
-                                                    <i class="bi bi-printer"></i>
-                                                </button>
-                                                <button class="btn btn-danger btn-sm" @click="deleteSchedule(schedule.id)">
-                                                    <i class="bi bi-trash-fill"></i>
-                                                </button>
+                                                <template v-if="showDeleted">
+                                                    <button v-if="permissions.delete" class="btn btn-success btn-sm" @click="restoreSchedule(schedule.id)" title="Restore">
+                                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                                    </button>
+                                                </template>
+                                                <template v-else>
+                                                    <button v-if="permissions.update" class="btn btn-secondary btn-sm me-1" @click="openManualAssign(schedule)" title="Assign Applicants">
+                                                        <i class="bi bi-person-plus"></i>
+                                                    </button>
+                                                    <button v-if="permissions.update" class="btn btn-secondary btn-sm me-1" @click="editSchedule(schedule)" title="Edit">
+                                                        <i class="bi bi-pencil-square"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary btn-sm me-1" @click="printSchedule(schedule)" title="Print Approved Applicants">
+                                                        <i class="bi bi-printer"></i>
+                                                    </button>
+                                                    <button v-if="permissions.delete" class="btn btn-danger btn-sm" @click="deleteSchedule(schedule.id)" title="Delete">
+                                                        <i class="bi bi-trash-fill"></i>
+                                                    </button>
+                                                </template>
                                             </td>
                                         </tr>
                                     </tbody>
                                     <tbody v-else>
                                         <tr>
-                                            <td colspan="8" class="text-center">No schedules found.</td>
+                                            <td colspan="9" class="text-center">No schedules found.</td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
-                            <div v-if="schedules.total > 0" class="row mt-3">
+                            <div v-if="pageMeta.total > 0" class="row mt-3">
                                 <div class="col-md-6">
-                                    Showing {{ schedules.from }} to {{ schedules.to }} of
-                                    {{ schedules.total.toLocaleString() }} entries
+                                    Showing {{ pageMeta.from }} to {{ pageMeta.to }} of
+                                    {{ pageMeta.total.toLocaleString() }} entries
                                 </div>
                                 <div class="col-md-6">
                                     <Bootstrap5Pagination :data="schedules" :limit="5" size="small"
@@ -427,13 +711,20 @@ onMounted(() => {
             <div class="modal-content border-0 p-3">
                 <div class="modal-body">
                     <h6 class="text-center">{{ isEditing ? 'Update Schedule' : 'New Schedule' }}</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" @click="closeScheduleModal" data-bs-dismiss="modal" aria-label="Close"></button>
                     <form @submit.prevent="submitSchedule">
                         <div class="mb-3">
+                            <label class="form-label required">School Year</label>
+                            <select :value="formSchoolYearId" class="form-select form-select-sm" disabled>
+                                <option :value="formSchoolYearId">{{ formSchoolYearLabel }}</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label required">Program</label>
-                            <select v-model="scheduleForm.program" class="form-select form-select-sm" required>
-                                <option value="STE">STE</option>
-                                <option value="SPICT">SPICT</option>
+                            <select v-model="scheduleForm.program_id" class="form-select form-select-sm" required>
+                                <option v-for="prog in programs" :key="prog.id" :value="prog.id">
+                                    {{ prog.initials }}
+                                </option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -484,17 +775,25 @@ onMounted(() => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="applicant in applicants" :key="applicant.id">
-                                    <td>
-                                        <input type="checkbox" v-model="selectedApplicants" :value="applicant.id" class="form-check-input" />
+                                <tr v-if="applicantsLoading">
+                                    <td colspan="4" class="text-center py-3">
+                                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                        Loading ...
                                     </td>
-                                    <td>{{ applicant.firstname }} {{ applicant.lastname }}</td>
-                                    <td>{{ applicant.program }}</td>
-                                    <td>{{ applicant.email }}</td>
                                 </tr>
-                                <tr v-if="applicants.length === 0">
-                                    <td colspan="4" class="text-center py-3">No unscheduled applicants found.</td>
-                                </tr>
+                                <template v-else>
+                                    <tr v-for="applicant in applicants" :key="applicant.id">
+                                        <td>
+                                            <input type="checkbox" v-model="selectedApplicants" :value="applicant.id" class="form-check-input" />
+                                        </td>
+                                        <td>{{ applicant.firstname }} {{ applicant.lastname }}</td>
+                                        <td>{{ applicant.program }}</td>
+                                        <td>{{ applicant.email }}</td>
+                                    </tr>
+                                    <tr v-if="applicants.length === 0">
+                                        <td colspan="4" class="text-center py-3">No unscheduled applicants found.</td>
+                                    </tr>
+                                </template>
                             </tbody>
                         </table>
                     </div>

@@ -30,7 +30,26 @@ class AppServiceProvider extends ServiceProvider
 
             $user_permissions = $user->roles->flatMap(fn($role) => $role->permissions->pluck('name'))->unique();
 
-            return $user_permissions->contains($ability);
+            if ($user_permissions->contains($ability)) {
+                return true;
+            }
+
+            if (! str_starts_with($ability, 'browse ')) {
+                return null;
+            }
+
+            $group = match (true) {
+                str_ends_with($ability, ' school-years'),
+                str_ends_with($ability, ' programs') => 'browse academic-setup',
+                str_ends_with($ability, ' users'),
+                str_ends_with($ability, ' roles'),
+                str_ends_with($ability, ' permission-titles'),
+                str_ends_with($ability, ' online-application'),
+                str_ends_with($ability, ' settings') => 'browse system-management',
+                default => null,
+            };
+
+            return $group !== null && $user_permissions->contains($group);
         });
     }
 }

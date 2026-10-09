@@ -16,4 +16,12 @@ export default {
     deletePermissionTitle(id) {
         return axios.delete(`/api/permission-titles/${id}`);
     },
+
+    restorePermissionTitle(id) {
+        return axios.post(`/api/permission-titles/${id}/restore`);
+    },
+
+    checkPermissions() {
+        return axios.get('/api/check/permission-titles/permissions');
+    },
 }

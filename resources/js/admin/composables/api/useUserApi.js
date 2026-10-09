@@ -17,11 +17,19 @@ export default {
         return axios.delete(`/api/users/${id}`);
     },
 
+    restoreUser(id) {
+        return axios.post(`/api/users/${id}/restore`);
+    },
+
     getRoles() {
         return axios.get('/api/list/roles');
     },
 
     getAllRoles() {
         return axios.get('/api/all/roles');
+    },
+
+    checkPermissions() {
+        return axios.get('/api/check/users/permissions');
     },
 }

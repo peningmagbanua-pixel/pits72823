@@ -21,6 +21,10 @@ export default {
         return axios.delete(`/api/roles/${id}`);
     },
 
+    restoreRole(id) {
+        return axios.post(`/api/roles/${id}/restore`);
+    },
+
     getRolePermissions(id) {
         return axios.get(`/api/roles/${id}/permissions`);
     },
@@ -31,5 +35,9 @@ export default {
 
     getRoleUsers(id) {
         return axios.get(`/api/roles/${id}/users`);
+    },
+
+    checkPermissions() {
+        return axios.get('/api/check/roles/permissions');
     },
 }

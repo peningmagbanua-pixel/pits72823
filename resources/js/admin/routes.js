@@ -12,7 +12,6 @@ import ProgramsList from "./pages/academic-management/programs/ProgramsList.vue"
 // Report & Monitorings
 import ReportsList from "./pages/reports/ReportsList.vue";
 import AuditLogsList from "./pages/audit-logs/AuditLogsList.vue";
-import ActivityLogsList from "./pages/applicant-management/activity-logs/ActivityLogsList.vue";
 
 // System Management
 import UsersList from "./pages/system-management/users/UsersList.vue";
@@ -32,6 +31,7 @@ export default [
     {
         path: "/admin/dashboard",
         name: "admin.dashboard",
+        meta: { view: "dashboard" },
         component: Dashboard,
     },
 
@@ -39,16 +39,19 @@ export default [
     {
         path: "/admin/applicant-accounts",
         name: "admin.applicant-accounts",
+        meta: { view: "applicant_accounts" },
         component: ApplicantAccountsList,
     },
     {
         path: "/admin/applications",
         name: "admin.applications",
+        meta: { view: "applications" },
         component: ApplicationsList,
     },
     {
         path: "/admin/exam-scheduling",
         name: "admin.exam-scheduling",
+        meta: { view: "exam_scheduling" },
         component: ExamSchedulesList,
     },
 
@@ -56,11 +59,13 @@ export default [
     {
         path: "/admin/academic-setup/school-years",
         name: "admin.acadmic-setup.school-years",
+        meta: { view: "school_years" },
         component: SchoolYearsList,
     },
     {
         path: "/admin/academic-setup/programs",
         name: "admin.acadmic-setup.programs",
+        meta: { view: "programs" },
         component: ProgramsList,
     },
 
@@ -68,38 +73,43 @@ export default [
     {
         path: "/admin/reports",
         name: "admin.reports",
+        meta: { view: "reports" },
         component: ReportsList,
     },
     {
         path: "/admin/audit-logs",
         name: "admin.audit-logs",
+        meta: { view: "audit_logs" },
         component: AuditLogsList,
     },
     {
         path: "/admin/activity-logs",
-        name: "admin.activity-logs",
-        component: ActivityLogsList,
+        redirect: "/admin/audit-logs",
     },
 
     // System Management
     {
         path: "/admin/system-management/users",
         name: "admin.system-management.users",
+        meta: { view: "users" },
         component: UsersList,
     },
     {
         path: "/admin/system-management/roles",
         name: "admin.system-management.roles",
+        meta: { view: "roles" },
         component: RolesList,
     },
     {
         path: "/admin/system-management/permission-titles",
         name: "admin.system-management.permission-titles",
+        meta: { view: "permission_titles" },
         component: PermissionTitlesList,
     },
     {
         path: "/admin/system-management/settings",
         name: "admin.system-management.settings",
+        meta: { view: "settings" },
         component: SettingsList,
     },
 
