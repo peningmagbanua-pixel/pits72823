@@ -1,21 +1,54 @@
 <!DOCTYPE html>
+<?php
+    // Load landing page settings from JSON (falls back to hardcoded defaults)
+    $settingsFile = storage_path('app/landing_settings.json');
+    $ls = file_exists($settingsFile)
+        ? array_merge([
+            'school_name'  => 'CNHS Online Application',
+            'title'        => 'Welcome to CNHS Online Application System',
+            'description'  => 'Apply for admission easily and conveniently from anywhere, anytime.',
+            'announcement' => '',
+            'contact_phone'=> '(+63) 44-291-2340',
+            'contact_email'=> 'cnhs.edu.ph@gmail.com',
+            'office_hours' => "Monday – Friday: 7:30 AM – 4:30 PM\nSaturday: 7:30 AM – 12:00 PM\nSunday: Closed",
+            'logo_path'    => null,
+            'banner_path'  => null,
+        ], json_decode(file_get_contents($settingsFile), true) ?? [])
+        : [
+            'school_name'  => 'CNHS Online Application',
+            'title'        => 'Welcome to CNHS Online Application System',
+            'description'  => 'Apply for admission easily and conveniently from anywhere, anytime.',
+            'announcement' => '',
+            'contact_phone'=> '(+63) 44-291-2340',
+            'contact_email'=> 'cnhs.edu.ph@gmail.com',
+            'office_hours' => "Monday – Friday: 7:30 AM – 4:30 PM\nSaturday: 7:30 AM – 12:00 PM\nSunday: Closed",
+            'logo_path'    => null,
+            'banner_path'  => null,
+        ];
+
+    $logoUrl   = $ls['logo_path']   ? asset('storage/' . $ls['logo_path'])   : asset('images/cnhs_logo.png');
+    $bannerUrl = $ls['banner_path'] ? asset('storage/' . $ls['banner_path']) : null;
+
+    // Split office hours string into display lines
+    $officeLines = array_filter(array_map('trim', explode("\n", $ls['office_hours'])));
+?>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>CNHS Online Application System</title>
-    <meta name="description" content="Apply for admission to Carranglan National High School online. Fast, secure, and available 24/7.">
-    <link rel="icon" href="{{ asset('images/cnhs_logo.png') }}" type="image/x-icon">
+    <title>{{ $ls['school_name'] }} — Online Application System</title>
+    <meta name="description" content="{{ $ls['description'] }}">
+    <link rel="icon" href="{{ $logoUrl }}" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ asset('css/spinner.css') }}">
 
     <style>
         :root {
-            --primary: #8B0000;
-            --primary-light: #A52A2A;
+            --primary: {{ $ls['primary_color'] ?? '#8B0000' }};
+            --primary-light: {{ $ls['primary_color'] ?? '#8B0000' }};
             --secondary: #6c757d;
         }
 
@@ -177,16 +210,56 @@
             .hero-section { padding: 90px 0 60px; min-height: auto; }
             .hero-logo-col { display: none; }
         }
+
+        /* ── Banner image (optional) ── */
+        .hero-section.has-banner {
+            background-image: var(--banner-url);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        .hero-section.has-banner::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.88);
+            z-index: 0;
+        }
+        .hero-section.has-banner { position: relative; }
+        .hero-section.has-banner .container { position: relative; z-index: 1; }
+
+        /* ── Announcement banner ── */
+        .announcement-bar {
+            background: var(--primary);
+            color: #fff;
+            text-align: center;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1050;
+        }
+        .announcement-bar + #mainNav { top: var(--announcement-h, 38px); }
+        .announcement-bar ~ .hero-section { padding-top: calc(110px + var(--announcement-h, 38px)); }
     </style>
 </head>
 
 <body>
+    @if(!empty($ls['announcement']))
+    <div class="announcement-bar">
+        <i class="bi bi-megaphone-fill me-2"></i>{{ $ls['announcement'] }}
+    </div>
+    @endif
+
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light fixed-top navbar-custom" id="mainNav">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="/">
-                <img src="{{ asset('images/cnhs_logo.png') }}" alt="CNHS Logo" class="logo-img me-2">
-                <span class="fw-bold">CNHS Online Application</span>
+                <img src="{{ $logoUrl }}" alt="{{ $ls['school_name'] }} Logo" class="logo-img me-2">
+                <span class="fw-bold">{{ $ls['school_name'] }}</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                 aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -204,12 +277,13 @@
     </nav>
 
     <!-- Hero Section -->
-    <section id="home" class="hero-section">
+    <section id="home" class="hero-section{{ $bannerUrl ? ' has-banner' : '' }}"
+        @if($bannerUrl) style="--banner-url: url('{{ $bannerUrl }}')" @endif>
         <div class="container">
             <div class="row align-items-center g-5">
                 <div class="col-lg-6">
-                    <h1 class="hero-title">Welcome to CNHS Online Application System</h1>
-                    <p class="hero-subtitle">Apply for admission easily and conveniently from anywhere, anytime.</p>
+                    <h1 class="hero-title">{{ $ls['title'] }}</h1>
+                    <p class="hero-subtitle">{{ $ls['description'] }}</p>
                     <div class="hero-steps">
                         <strong>Quick Process:</strong><br>
                         <i class="bi bi-1-circle-fill me-2" style="color: var(--primary);"></i>Register and choose your program<br>
@@ -229,7 +303,7 @@
                     </div>
                 </div>
                 <div class="col-lg-6 text-center hero-logo-col">
-                    <img src="{{ asset('images/cnhs_logo.png') }}" alt="CNHS Logo" class="img-fluid"
+                    <img src="{{ $logoUrl }}" alt="{{ $ls['school_name'] }}" class="img-fluid"
                         style="max-width: 380px; filter: drop-shadow(0 10px 30px rgba(139,0,0,.25));">
                 </div>
             </div>
@@ -305,8 +379,8 @@
             <h2 class="section-title">About CNHS</h2>
             <div class="row align-items-center g-5">
                 <div class="col-lg-5 text-center">
-                    <img src="{{ asset('images/cnhs_logo.png') }}" alt="Carranglan National High School"
-                        class="img-fluid rounded shadow" style="max-width: 320px;">
+                    <img src="{{ $logoUrl }}" alt="{{ $ls['school_name'] }}"
+                        class="img-fluid rounded shadow" style="max-width: min(320px, 100%);">
                 </div>
                 <div class="col-lg-7">
                     <h3 class="mb-3" style="color: var(--primary);">Excellence in Education</h3>
@@ -331,25 +405,16 @@
             <div class="row g-4 mb-4">
                 <!-- Address Card – clicking toggles Google Maps below -->
                 <div class="col-md-4">
-                    <a href="#"
-                        class="address-card-link"
-                        id="addressCardLink"
-                        title="Click to view location map">
-                        <div class="card feature-card h-100">
-                            <div class="card-body text-center">
-                                <i class="bi bi-geo-alt-fill feature-icon"></i>
-                                <h5 class="fw-bold">Address</h5>
-                                <p class="card-text text-muted">
-                                    Carranglan National High School<br>
-                                    Brgy. Bayucan, Carranglan<br>
-                                    Nueva Ecija, Philippines 3105
-                                </p>
-                                <small class="text-muted" style="font-size: .78rem;">
-                                    <i class="bi bi-map me-1"></i>Click to View Map
-                                </small>
-                            </div>
+                    <div class="card feature-card h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-geo-alt-fill feature-icon"></i>
+                            <h5 class="fw-bold">Address</h5>
+                            <p class="card-text text-muted">
+                                Carranglan National High School<br>
+                                {{ $ls['contact_address'] ?? 'Quezon Street, F.C. Otic Poblacion (Brgy. II), Carranglan, Nueva Ecija' }}
+                            </p>
                         </div>
-                    </a>
+                    </div>
                 </div>
 
                 <!-- Contact Info -->
@@ -359,10 +424,14 @@
                             <i class="bi bi-telephone-fill feature-icon"></i>
                             <h5 class="fw-bold">Contact</h5>
                             <p class="card-text text-muted">
-                                <strong>Phone:</strong> (+63) 44-291-2340<br>
+                                @if(!empty($ls['contact_phone']))
+                                <strong>Phone:</strong> {{ $ls['contact_phone'] }}<br>
+                                @endif
+                                @if(!empty($ls['contact_email']))
                                 <strong>Email:</strong><br>
-                                <a href="mailto:cnhs.edu.ph@gmail.com" class="text-decoration-none"
-                                    style="color: var(--primary);">cnhs.edu.ph@gmail.com</a>
+                                <a href="mailto:{{ $ls['contact_email'] }}" class="text-decoration-none"
+                                    style="color: var(--primary);">{{ $ls['contact_email'] }}</a>
+                                @endif
                             </p>
                         </div>
                     </div>
@@ -375,32 +444,15 @@
                             <i class="bi bi-clock feature-icon"></i>
                             <h5 class="fw-bold">Office Hours</h5>
                             <p class="card-text text-muted">
-                                <strong>Monday – Friday:</strong><br>7:30 AM – 4:30 PM<br>
-                                <strong>Saturday:</strong><br>7:30 AM – 12:00 PM<br>
-                                <strong>Sunday:</strong> Closed
+                                @foreach($officeLines as $line)
+                                    {!! nl2br(e($line)) !!}<br>
+                                @endforeach
                             </p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Google Maps Embed -->
-            <div class="map-container d-none" id="googleMapSection">
-                <iframe
-                    id="googleMapIframe"
-                    data-src="https://maps.google.com/maps?q=Carranglan%20National%20High%20School,%20Brgy.%20Bayucan,%20Carranglan,%20Nueva%20Ecija&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                    width="100%"
-                    height="380"
-                    style="border:0;"
-                    allowfullscreen=""
-                    loading="lazy"
-                    referrerpolicy="no-referrer-when-downgrade"
-                    title="Carranglan National High School Location">
-                </iframe>
-            </div>
-            <p class="text-muted small mt-2 text-center">
-                <i class="bi bi-info-circle me-1"></i>Click the <strong>Address</strong> card above to toggle directions on the map.
-            </p>
         </div>
     </section>
 
@@ -410,8 +462,8 @@
             <div class="row g-4">
                 <div class="col-md-4">
                     <div class="d-flex align-items-center mb-2">
-                        <img src="{{ asset('images/cnhs_logo.png') }}" alt="CNHS" width="36" class="me-2">
-                        <h5 class="mb-0">CNHS Online Application</h5>
+                        <img src="{{ $logoUrl }}" alt="{{ $ls['school_name'] }}" width="36" class="me-2">
+                        <h5 class="mb-0">{{ $ls['school_name'] }}</h5>
                     </div>
                     <p class="text-white-50 small">Making education accessible through technology.</p>
                 </div>
@@ -446,6 +498,17 @@
     <script src="{{ asset('js/spinner.js') }}"></script>
 
     <script>
+        // Keep the fixed nav and hero clear of the announcement bar when its text wraps
+        const announcementBar = document.querySelector('.announcement-bar');
+        if (announcementBar) {
+            const setAnnouncementHeight = () => {
+                document.documentElement.style.setProperty('--announcement-h', announcementBar.offsetHeight + 'px');
+            };
+            setAnnouncementHeight();
+            window.addEventListener('resize', setAnnouncementHeight);
+            if (document.fonts && document.fonts.ready) document.fonts.ready.then(setAnnouncementHeight);
+        }
+
         // Smooth scroll for nav links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
@@ -457,31 +520,6 @@
                     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             });
-        });
-
-        // Address card click: load/toggle map + scroll
-        document.getElementById('addressCardLink').addEventListener('click', function (e) {
-            e.preventDefault();
-            const mapSection = document.getElementById('googleMapSection');
-            const iframe = document.getElementById('googleMapIframe');
-            if (mapSection && iframe) {
-                // Dynamically set src if not loaded yet
-                if (!iframe.src) {
-                    iframe.src = iframe.getAttribute('data-src');
-                }
-                
-                if (mapSection.classList.contains('d-none')) {
-                    mapSection.classList.remove('d-none');
-                    setTimeout(() => {
-                        mapSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        mapSection.classList.remove('map-pulse');
-                        void mapSection.offsetWidth; // reflow to restart animation
-                        mapSection.classList.add('map-pulse');
-                    }, 100);
-                } else {
-                    mapSection.classList.add('d-none');
-                }
-            }
         });
 
         // Active nav link on scroll

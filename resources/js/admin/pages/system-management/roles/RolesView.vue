@@ -9,15 +9,20 @@ const role = reactive({
 });
 
 const users = ref([]);
+const usersLoading = ref(false);
 
 const getRole = (roleData) => {
     role.id = roleData.id;
     role.name = roleData.name;
     role.created_at = roleData.created_at;
     
+    usersLoading.value = true;
     axios.get(`/api/roles/${roleData.id}/users`)
         .then((response) => {
             users.value = response.data.users;
+        })
+        .finally(() => {
+            usersLoading.value = false;
         });
 };
 
@@ -50,7 +55,11 @@ defineExpose({ getRole });
 
                     <div class="mb-3">
                         <label class="form-label fw-bold">Users with this role:</label>
-                        <div v-if="users.length > 0" class="table-responsive">
+                        <div v-if="usersLoading" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-3 mb-0 text-muted">Loading ...</p>
+                        </div>
+                        <div v-else-if="users.length > 0" class="table-responsive">
                             <table class="table table-bordered table-hover table-sm">
                                 <thead>
                                     <tr>

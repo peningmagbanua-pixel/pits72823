@@ -8,6 +8,7 @@ const dashboardData = ref({
 });
 const loading = ref(true);
 
+
 const fetchDashboardData = async () => {
     try {
         const response = await axios.get("/api/applicant/dashboard");
@@ -19,6 +20,7 @@ const fetchDashboardData = async () => {
     }
 };
 
+
 const daysRemaining = (dateStr) => {
     if (!dateStr) return null;
     const now = new Date();
@@ -27,8 +29,19 @@ const daysRemaining = (dateStr) => {
     return diff;
 };
 
+// "2026-10-09" (or an ISO timestamp) -> "October 9, 2026"
+const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = String(dateStr).slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return dateStr;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+};
+
 const deadlineDays = computed(() => daysRemaining(dashboardData.value.school_year?.application_deadline));
-const examDays = computed(() => daysRemaining(dashboardData.value.school_year?.exam_date));
 
 onMounted(() => {
     fetchDashboardData();
@@ -69,7 +82,7 @@ onMounted(() => {
                 <div class="card shadow-sm border-0 mb-4">
                     <div class="card-body text-center py-4">
                         <img src="/images/cnhs_logo.png" alt="CNHS Logo" class="mb-3" style="width: 80px;">
-                        <h4 class="fw-bold text-secondary mb-1">Welcome, {{ dashboardData.applicant?.name }}!</h4>
+                        <h4 class="fw-bold text-secondary mb-1">Welcome{{ dashboardData.applicant?.name ? ', ' + dashboardData.applicant.name : '' }}!</h4>
                         <p class="text-muted mb-0">Carranglan National High School — Online Application Portal</p>
                     </div>
                 </div>
@@ -96,7 +109,7 @@ onMounted(() => {
                             <div class="col-md-3">
                                 <div class="p-3 bg-light rounded border text-center h-100">
                                     <small class="text-muted text-uppercase fw-bold">Exam Date</small>
-                                    <p class="fs-5 fw-bold mb-0 mt-2">{{ dashboardData.schedule.date || 'TBA' }}</p>
+                                    <p class="fs-5 fw-bold mb-0 mt-2">{{ formatDate(dashboardData.schedule.date) || 'TBA' }}</p>
                                 </div>
                             </div>
                             <div class="col-md-3">
@@ -144,27 +157,18 @@ onMounted(() => {
                             </div>
                             <div class="card-body">
                                 <div class="row g-3">
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <div class="p-3 bg-light rounded border text-center h-100">
                                             <small class="text-muted text-uppercase fw-bold">Application Start</small>
-                                            <p class="fs-5 fw-bold mb-1 mt-2">{{ dashboardData.school_year.application_start || 'TBA' }}</p>
+                                            <p class="fs-5 fw-bold mb-1 mt-2">{{ formatDate(dashboardData.school_year.application_start) || 'TBA' }}</p>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <div class="p-3 bg-light rounded border text-center h-100">
                                             <small class="text-muted text-uppercase fw-bold">Application Deadline</small>
-                                            <p class="fs-5 fw-bold mb-1 mt-2">{{ dashboardData.school_year.application_deadline || 'TBA' }}</p>
+                                            <p class="fs-5 fw-bold mb-1 mt-2">{{ formatDate(dashboardData.school_year.application_deadline) || 'TBA' }}</p>
                                             <span v-if="deadlineDays !== null" :class="deadlineDays <= 0 ? 'text-danger' : 'text-warning'" class="fw-semibold small">
                                                 {{ deadlineDays > 0 ? deadlineDays + ' days remaining' : deadlineDays === 0 ? 'Last day today' : 'Deadline passed' }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="p-3 bg-light rounded border text-center h-100">
-                                            <small class="text-muted text-uppercase fw-bold">Exam Date</small>
-                                            <p class="fs-5 fw-bold mb-1 mt-2">{{ dashboardData.school_year.exam_date || 'TBA' }}</p>
-                                            <span v-if="examDays !== null" :class="examDays > 0 ? 'text-primary' : 'text-muted'" class="fw-semibold small">
-                                                {{ examDays > 0 ? 'In ' + examDays + ' days' : examDays === 0 ? 'Today' : 'Passed' }}
                                             </span>
                                         </div>
                                     </div>

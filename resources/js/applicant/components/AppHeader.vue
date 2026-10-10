@@ -105,16 +105,16 @@ const logout = () => {
                             <img :src="authApplicantStore.applicant.profile || '/images/default.jpeg'"
                                 class="rounded-circle shadow-sm mb-2" alt="User Image" width="64" height="64">
                             <p class="mb-0 fw-semibold">{{ authApplicantStore.applicant.name }}</p>
-                            <small class="text-muted">{{ authApplicantStore.applicant.email }}</small>
+                            <small class="text-muted text-break">{{ authApplicantStore.applicant.email }}</small>
                         </li>
 
-                        <li class="d-flex justify-content-between">
+                        <li class="d-flex justify-content-between gap-2">
                             <a href="/applicant/profile"
-                                class="btn btn-sm btn-link text-decoration-none bg-body text-body w-45">
+                                class="btn btn-sm btn-link text-decoration-none bg-body text-body w-50">
                                 <i class="bi bi-person-fill me-1"></i>Profile
                             </a>
                             <button @click.prevent="logout()"
-                                class="btn btn-sm btn-link text-decoration-none bg-body text-body w-45">
+                                class="btn btn-sm btn-link text-decoration-none bg-body text-body w-50">
                                 <i class="bi bi-power me-1"></i>Log out
                             </button>
                         </li>

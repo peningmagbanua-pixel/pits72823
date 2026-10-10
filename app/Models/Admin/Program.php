@@ -4,18 +4,31 @@ namespace App\Models\Admin;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Program extends Model
 {
-    use HasUuids;
+    use HasUuids, SoftDeletes;
+
     protected $table = 'programs';
 
     protected $fillable = [
         'initials',
         'name',
         'description',
-        'is_active'
+        'is_active',
     ];
+
+    /**
+     * Requirements assigned to this program (a requirement with no programs
+     * at all applies to every program, including this one).
+     */
+    public function requirements(): BelongsToMany
+    {
+        return $this->belongsToMany(Requirement::class, 'program_requirements')
+            ->withTimestamps();
+    }
 
     public function scopeSearch($query, $term)
     {

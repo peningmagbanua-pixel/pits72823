@@ -4,6 +4,30 @@ import { ref, onMounted, computed } from 'vue';
 const loading       = ref(true);
 const application   = ref(null);
 const hasApplication = ref(false);
+const applicationPeriod = ref(null);
+
+const periodStatus = computed(() => applicationPeriod.value?.status || 'open');
+
+const periodMessage = computed(() => {
+    const period = applicationPeriod.value;
+    if (!period) return '';
+    if (period.status === 'not_open') {
+        return 'The online application is not yet open. It opens on ' + formatDate(period.application_start) + '.';
+    }
+    return 'The online application period has ended. Applications are no longer accepted.';
+});
+
+// "2026-06-01" -> "June 1, 2026"
+const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = String(dateStr).slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return dateStr;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+};
 
 const statusColor = computed(() => {
     const s = application.value?.application_status;
@@ -22,6 +46,7 @@ const statusIcon = computed(() => {
 onMounted(async () => {
     try {
         const res = await axios.get('/api/applicant/application');
+        applicationPeriod.value = res.data?.application_period || null;
         if (res.data?.submitted) {
             application.value = res.data;
             hasApplication.value = true;
@@ -70,11 +95,11 @@ onMounted(async () => {
                 <div class="row mb-4">
                     <div class="col-lg-12">
                         <div class="card border-0 shadow-sm">
-                            <div class="card-body d-flex align-items-center gap-4 p-4">
+                            <div class="card-body d-flex flex-column flex-sm-row align-items-sm-center gap-3 gap-sm-4 p-3 p-sm-4">
                                 <div>
                                     <i class="bi fs-1" :class="statusIcon"></i>
                                 </div>
-                                <div class="flex-grow-1">
+                                <div class="flex-grow-1 text-break">
                                     <div class="d-flex align-items-center gap-2 mb-1">
                                         <span class="badge" :class="application.program === 'STE' ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary'">
                                             {{ application.program }}
@@ -93,11 +118,31 @@ onMounted(async () => {
                                             You will receive an email at <strong>{{ application.email }}</strong> with your account credentials soon.
                                         </span>
                                         <span v-else-if="application.application_status === 'rejected'">
-                                            Please contact the school for more information.
+                                            Please review the reason below and submit the required corrections.
                                         </span>
                                         <span v-else>
                                             The administrator is reviewing your application. You will be notified via email at <strong>{{ application.email }}</strong>.
                                         </span>
+                                    </p>
+
+                                    <div v-if="application.application_status === 'rejected' && application.rejection_reason"
+                                        class="mt-3 p-3 rounded border-start border-4"
+                                        style="border-color: #8B0000 !important; background: #f8f9fa;">
+                                        <div class="fw-semibold small mb-1">Reason for Rejection</div>
+                                        <div class="small text-muted" style="white-space: pre-wrap; word-break: break-word;">
+                                            {{ application.rejection_reason }}
+                                        </div>
+                                    </div>
+
+                                    <!-- Reapplication: correct and resubmit -->
+                                    <router-link v-if="application.application_status === 'rejected' && periodStatus === 'open'"
+                                        to="/applicant/application/select-program"
+                                        class="btn btn-danger btn-sm fw-semibold mt-3">
+                                        <i class="bi bi-pencil-square me-1"></i>Correct &amp; Resubmit Application
+                                    </router-link>
+                                    <p v-else-if="application.application_status === 'rejected'"
+                                        class="small text-muted mt-3 mb-0">
+                                        {{ periodMessage }}
                                     </p>
                                 </div>
                             </div>
@@ -188,61 +233,19 @@ onMounted(async () => {
                             <div class="card-body">
                                 <div class="row g-3" style="font-size: 13px;">
 
-                                    <!-- SF9 -->
-                                    <div class="col-md-3">
+                                    <div class="col-md-3" v-for="doc in application.documents" :key="doc.requirement_id">
                                         <div class="border rounded p-3 text-center" style="min-height: 100px;">
-                                            <div class="text-muted small mb-2">SF9 / Report Card</div>
-                                            <template v-if="application.sf9_file">
-                                                <a :href="application.sf9_file" target="_blank" class="btn btn-outline-primary btn-sm">
-                                                    <i class="bi bi-eye me-1"></i>View
-                                                </a>
-                                            </template>
-                                            <span v-else class="text-muted small">Not submitted</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Good Moral -->
-                                    <div class="col-md-3" v-if="application.program === 'STE'">
-                                        <div class="border rounded p-3 text-center" style="min-height: 100px;">
-                                            <div class="text-muted small mb-2">Good Moral Certificate</div>
-                                            <template v-if="application.good_moral_file">
-                                                <a :href="application.good_moral_file" target="_blank" class="btn btn-outline-primary btn-sm">
-                                                    <i class="bi bi-eye me-1"></i>View
-                                                </a>
-                                            </template>
-                                            <span v-else class="text-muted small">Not submitted</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Health Declaration -->
-                                    <div class="col-md-3" v-if="application.program === 'STE'">
-                                        <div class="border rounded p-3 text-center" style="min-height: 100px;">
-                                            <div class="text-muted small mb-2">Health Declaration Form</div>
-                                            <template v-if="application.ste_declaration">
+                                            <div class="text-muted small mb-1">{{ doc.name }}</div>
+                                            <span v-if="doc.is_orphan" class="badge bg-secondary-subtle text-secondary d-block mb-2">
+                                                Requirement removed
+                                            </span>
+                                            <template v-if="doc.completed">
                                                 <span class="badge bg-success-subtle text-success">
                                                     <i class="bi bi-check-circle-fill me-1"></i>Completed Online
                                                 </span>
                                             </template>
-                                            <template v-else-if="application.health_declaration_file">
-                                                <a :href="application.health_declaration_file" target="_blank" class="btn btn-outline-primary btn-sm">
-                                                    <i class="bi bi-eye me-1"></i>View
-                                                </a>
-                                            </template>
-                                            <span v-else class="text-muted small">Not submitted</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- STE Declaration -->
-                                    <div class="col-md-3" v-if="application.program === 'STE'">
-                                        <div class="border rounded p-3 text-center" style="min-height: 100px;">
-                                            <div class="text-muted small mb-2">STE Declaration Form</div>
-                                            <template v-if="application.ste_declaration">
-                                                <span class="badge bg-success-subtle text-success">
-                                                    <i class="bi bi-check-circle-fill me-1"></i>Submitted
-                                                </span>
-                                            </template>
-                                            <template v-else-if="application.ste_declaration_file">
-                                                <a :href="application.ste_declaration_file" target="_blank" class="btn btn-outline-primary btn-sm">
+                                            <template v-else-if="doc.url">
+                                                <a :href="doc.url" target="_blank" class="btn btn-outline-primary btn-sm">
                                                     <i class="bi bi-eye me-1"></i>View
                                                 </a>
                                             </template>
@@ -268,14 +271,29 @@ onMounted(async () => {
                                     <i class="bi bi-file-earmark-text fs-1 text-muted"></i>
                                 </div>
                                 <h5 class="fw-bold mb-2">No Application Submitted Yet</h5>
-                                <p class="text-muted small mb-4">
+                                <p class="text-muted small mb-4" v-if="periodStatus === 'open'">
                                     You haven't submitted an enrollment application yet.
                                     Please fill out the application form to get started.
                                 </p>
-                                <router-link to="/applicant/application/select-program"
+                                <router-link v-if="periodStatus === 'open'" to="/applicant/application/select-program"
                                     class="btn btn-primary fw-semibold">
                                     <i class="bi bi-pencil-square me-1"></i>Go to Application Form
                                 </router-link>
+                                <div v-else class="alert mb-0 text-start"
+                                    :class="periodStatus === 'not_open' ? 'alert-info' : 'alert-secondary'">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fs-4 me-3"
+                                            :class="periodStatus === 'not_open' ? 'bi bi-clock-history text-info' : 'bi bi-calendar-x text-secondary'"></i>
+                                        <div>
+                                            <h6 class="mb-1 fw-bold text-dark">
+                                                {{ periodStatus === 'not_open' ? 'Application Not Yet Open' : 'Application Period Closed' }}
+                                            </h6>
+                                            <p class="mb-0 small text-secondary">
+                                                {{ periodMessage }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

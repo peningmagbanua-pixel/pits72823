@@ -31,6 +31,7 @@ class PermissionTitlesController extends Controller
         }
 
         $permissionTitles = PermissionTitle::withCount('permissions')
+            ->when(request('deleted') == '1', fn ($query) => $query->onlyTrashed())
             ->orderBy('name', 'asc')
             ->search(trim($search))
             ->orderBy($sort_field, $sort_order)
@@ -41,6 +42,12 @@ class PermissionTitlesController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->filled('name') && PermissionTitle::onlyTrashed()->where('name', $request->name)->exists()) {
+            return response()->json([
+                'message' => 'A deleted permission title with this name exists. Restore it instead.',
+            ], 400);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:permission_titles,name',
         ]);
@@ -83,6 +90,15 @@ class PermissionTitlesController extends Controller
             return response()->json([
                 'message' => 'Permission title not found!',
             ], 404);
+        }
+
+        if ($request->filled('name') && PermissionTitle::onlyTrashed()
+            ->where('name', $request->name)
+            ->where('id', '!=', $id)
+            ->exists()) {
+            return response()->json([
+                'message' => 'A deleted permission title with this name exists. Restore it instead.',
+            ], 400);
         }
 
         $validated = $request->validate([
@@ -142,5 +158,30 @@ class PermissionTitlesController extends Controller
                 'message' => 'Failed to delete permission title!',
             ], 500);
         }
+    }
+
+    public function restore($id)
+    {
+        $permission_title = PermissionTitle::withTrashed()->findOrFail($id);
+
+        if (!$permission_title->trashed()) {
+            return response()->json([
+                'message' => 'Permission title is not deleted!',
+            ], 400);
+        }
+
+        $permission_title->restore();
+
+        $this->setAuditLog(
+            ActionType::Updated->value,
+            'Permission Titles',
+            'Restored permission title ' . $permission_title->id,
+            null,
+            $permission_title->toArray()
+        );
+
+        return response()->json([
+            'message' => 'Permission title restored successfully!',
+        ]);
     }
 }

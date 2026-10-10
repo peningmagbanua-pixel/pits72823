@@ -7,6 +7,7 @@ export const useAuthApplicantStore = defineStore('AuthApplicantStore', () => {
         name: '',
         email: '',
         profile: '',
+        must_change_password: false,
     });
 
     const getAuthApplicant = async () => {

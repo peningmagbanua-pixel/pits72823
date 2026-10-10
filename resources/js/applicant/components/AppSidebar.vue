@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import Swal from "sweetalert2";
 import { logoutAlert } from "../../sweetalert";
@@ -9,6 +10,14 @@ const route = useRoute();
 const authApplicantStore = useAuthApplicantStore();
 
 const isActive = (path) => route.path.startsWith(path);
+
+// The application form is available before the first submission and,
+// afterwards, only while the application is rejected (reapplication).
+const canOpenForm = computed(
+    () =>
+        !authApplicantStore.applicant.program ||
+        authApplicantStore.applicant.application_status === "rejected",
+);
 
 const logout = () => {
     Swal.fire({
@@ -77,64 +86,43 @@ const logout = () => {
                         </router-link>
                     </li>
 
-                    <li
-                        v-if="!authApplicantStore.applicant.program"
-                        class="nav-item"
-                    >
-                        <a
-                            href="#"
-                            class="nav-link"
+                    <li v-if="canOpenForm" class="nav-item">
+                        <router-link
+                            to="/applicant/application/select-program"
                             :class="{
-                                'menu-open active': isActive(
-                                    '/applicant/application',
-                                ),
+                                active:
+                                    isActive('/applicant/application/form') ||
+                                    isActive('/applicant/application/select-program'),
                             }"
+                            class="nav-link"
                         >
-                            <i
-                                class="nav-icon bi bi-file-earmark-text-fill"
-                            ></i>
-                            <p>
-                                Application
-                                <i class="nav-arrow bi bi-chevron-right"></i>
-                            </p>
-                        </a>
-                        <ul class="nav nav-treeview">
-                            <li class="nav-item">
-                                <router-link
-                                    to="/applicant/application/select-program"
-                                    :class="{
-                                        active:
-                                            isActive(
-                                                '/applicant/application/form',
-                                            ) ||
-                                            isActive(
-                                                '/applicant/application/select-program',
-                                            ),
-                                    }"
-                                    class="nav-link"
-                                >
-                                    <i class="nav-icon bi bi-pencil-square"></i>
-                                    <p>Application Form</p>
-                                </router-link>
-                            </li>
+                            <i class="nav-icon bi bi-pencil-square"></i>
+                            <p>Application Form</p>
+                        </router-link>
+                    </li>
 
-                            <li class="nav-item">
-                                <router-link
-                                    to="/applicant/application/status"
-                                    :class="{
-                                        active: isActive(
-                                            '/applicant/application/status',
-                                        ),
-                                    }"
-                                    class="nav-link"
-                                >
-                                    <i
-                                        class="nav-icon bi bi-clipboard-check"
-                                    ></i>
-                                    <p>Application Status</p>
-                                </router-link>
-                            </li>
-                        </ul>
+                    <li class="nav-item">
+                        <router-link
+                            to="/applicant/application/status"
+                            :class="{
+                                active: isActive('/applicant/application/status'),
+                            }"
+                            class="nav-link"
+                        >
+                            <i class="nav-icon bi bi-clipboard-check"></i>
+                            <p>Application Status</p>
+                        </router-link>
+                    </li>
+
+                    <li class="nav-item">
+                        <router-link
+                            to="/applicant/activity-logs"
+                            :class="{ active: isActive('/applicant/activity-logs') }"
+                            class="nav-link"
+                        >
+                            <i class="nav-icon bi bi-person-lines-fill"></i>
+                            <p>Activity Logs</p>
+                        </router-link>
                     </li>
 
                     <li class="nav-item">

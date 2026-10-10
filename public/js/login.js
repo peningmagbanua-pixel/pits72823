@@ -30,16 +30,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (loginBtn) {
-        const lText = loginBtn.querySelector('.btn-text');
-        const lLoading = loginBtn.querySelector('.btn-loading');
-
         loginBtn.addEventListener('click', function () {
             loginBtn.classList.add('disabled');
             loginBtn.setAttribute('aria-disabled', 'true');
             loginBtn.style.pointerEvents = "none";
-
-            lText.classList.add('d-none');
-            lLoading.classList.remove('d-none');
         });
     }
 

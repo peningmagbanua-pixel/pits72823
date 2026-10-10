@@ -14,6 +14,7 @@ use App\Enums\ActionType;
 use App\Mail\UserAccountCreatedMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class UsersController extends Controller
 {
@@ -35,15 +36,16 @@ class UsersController extends Controller
             $sort_field = 'created_at';
         }
 
-        $users = User::with('roles')
+        $users = User::with(['roles', 'program_assignments'])
             ->when($role, function ($query) use ($role) {
                  $query->whereHas('roles', function ($query) use ($role) {
                     $query->where('role_id', $role); 
                 });
             })
-            ->when($status !== null, function ($query) use ($status) { 
+            ->when($status !== null && $status !== '', function ($query) use ($status) {
                 $query->where('is_active', $status);
             })
+            ->when(request('deleted') == '1', fn ($query) => $query->onlyTrashed())
             ->search(trim($search))
             ->orderBy($sort_field, $sort_order)
             ->paginate($paginate);
@@ -66,10 +68,12 @@ class UsersController extends Controller
             'firstname' => 'required|string|max:255',
             'middlename' => 'nullable|string|max:255',
             'extname' => 'nullable|string|max:255',
-            'email' => 'required|email|unique:users,email',
+            'email' => ['required', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')],
             'admin' => 'nullable|string|in:Yes,No',
             'roles' => 'required_if:admin,No|array',
             'roles.*' => 'exists:roles,id',
+            'program_access' => 'nullable|array',
+            'program_access.*' => 'in:SPICT,STE',
         ]);
 
         // Generate a random temporary password
@@ -81,7 +85,8 @@ class UsersController extends Controller
             'middlename' => $validated['middlename'],
             'extname' => $validated['extname'],
             'email' => $validated['email'],
-            'password' => bcrypt($plainPassword)
+            'password' => bcrypt($plainPassword),
+            'must_change_password' => true,
         ]);
 
         if (isset($validated['admin']) && $validated['admin'] === $this->ADMIN_YES) {
@@ -92,6 +97,13 @@ class UsersController extends Controller
         } else {
             if (isset($validated['roles']) && count($validated['roles']) > 0) {
                 $user->roles()->attach($validated['roles']);
+            }
+        }
+
+        // Save program assignments (not applied to System Administrators)
+        if (!(isset($validated['admin']) && $validated['admin'] === $this->ADMIN_YES)) {
+            foreach (array_unique($validated['program_access'] ?? []) as $program) {
+                $user->program_assignments()->create(['program' => $program]);
             }
         }
 
@@ -123,11 +135,13 @@ class UsersController extends Controller
             'firstname' => 'required|string|max:255',
             'middlename' => 'nullable|string|max:255',
             'extname' => 'nullable|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $id,
+            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($id)->whereNull('deleted_at')],
             'status' => 'required|boolean',
             'admin' => 'nullable|string|in:Yes,No',
             'roles' => 'required_if:admin,No|array',
             'roles.*' => 'exists:roles,id',
+            'program_access' => 'nullable|array',
+            'program_access.*' => 'in:SPICT,STE',
         ]);
 
         $old_values = $user->getOriginal();
@@ -151,6 +165,15 @@ class UsersController extends Controller
         } else {
             if (isset($validated['roles']) && count($validated['roles']) > 0) {
                 $user->roles()->attach($validated['roles']);
+            }
+        }
+
+        // Replace program assignments (System Administrators keep none)
+        $user->program_assignments()->delete();
+
+        if (!(isset($validated['admin']) && $validated['admin'] === $this->ADMIN_YES)) {
+            foreach (array_unique($validated['program_access'] ?? []) as $program) {
+                $user->program_assignments()->create(['program' => $program]);
             }
         }
 
@@ -185,10 +208,7 @@ class UsersController extends Controller
         $module = 'Users';
         $description = 'Deleted user ' . $user->email;
         $old_values = $user->getOriginal();
-        
-        // Clear email to avoid unique constraint conflicts after deletion
-        $user->update(['email' => null]);
-        
+
         if ($user->delete()) {
             $this->setAuditLog($action, $module, $description, $old_values, null);
             return response()->json([
@@ -199,5 +219,33 @@ class UsersController extends Controller
                 'message' => 'Failed to delete user!',
             ], 500);
         }
+    }
+
+    public function restore($id)
+    {
+        $user = User::withTrashed()->findOrFail($id);
+
+        if (!$user->trashed()) {
+            return response()->json([
+                'message' => 'User is not deleted!',
+            ], 400);
+        }
+
+        if ($user->email !== null && User::where('email', $user->email)->exists()) {
+            return response()->json([
+                'message' => 'An active account with this email already exists. The deleted account cannot be restored.',
+            ], 400);
+        }
+
+        $user->restore();
+
+        $action = ActionType::Updated->value;
+        $module = 'Users';
+        $description = 'Restored user ' . $user->email;
+        $this->setAuditLog($action, $module, $description, null, $user->toArray());
+
+        return response()->json([
+            'message' => 'User restored successfully!',
+        ]);
     }
 }

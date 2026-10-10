@@ -634,7 +634,7 @@ onMounted(async () => {
                                             <th class="align-middle text-center">Room</th>
                                             <th class="align-middle text-center">Capacity</th>
                                             <th class="align-middle text-center">Assigned</th>
-                                            <th class="align-middle text-center">Action/s</th>
+                                            <th class="align-middle text-center actions-cell">Action/s</th>
                                         </tr>
                                     </thead>
                                     <tbody v-if="loading">
@@ -658,7 +658,7 @@ onMounted(async () => {
                                             <td class="align-middle text-center">{{ schedule.room }}</td>
                                             <td class="align-middle text-center">{{ schedule.capacity }}</td>
                                             <td class="align-middle text-center">{{ schedule.applicants_count }} / {{ schedule.capacity }}</td>
-                                            <td class="align-middle text-center">
+                                            <td class="align-middle text-center actions-cell">
                                                 <template v-if="showDeleted">
                                                     <button v-if="permissions.delete" class="btn btn-success btn-sm" @click="restoreSchedule(schedule.id)" title="Restore">
                                                         <i class="bi bi-arrow-counterclockwise"></i>

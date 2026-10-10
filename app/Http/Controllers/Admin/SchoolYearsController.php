@@ -7,12 +7,13 @@ use App\Http\Resources\Admin\SchoolYearsResource;
 use Illuminate\Http\Request;
 use App\Models\Admin\SchoolYear;
 use App\Traits\AuditLogsTrait;
+use App\Traits\AdminActivityLogsTrait;
 use App\Enums\ActionType;
 use App\Enums\SchoolYearStatus;
 
 class SchoolYearsController extends Controller
 {
-    use AuditLogsTrait;
+    use AuditLogsTrait, AdminActivityLogsTrait;
     public function index()
     {
         $paginate = request('paginate');
@@ -30,6 +31,7 @@ class SchoolYearsController extends Controller
         }
 
         $school_years = SchoolYear::search(trim($search))
+             ->when(request('deleted') == '1', fn ($query) => $query->onlyTrashed())
              ->orderBy($sort_field, $sort_order)
              ->paginate($paginate);  
              
@@ -43,7 +45,6 @@ class SchoolYearsController extends Controller
             'school_year_end' => 'required',
             'application_start' => 'nullable|date',
             'application_deadline' => 'nullable|date',
-            'exam_date' => 'nullable|date',
             'guidelines' => 'nullable|string',
         ]);
 
@@ -65,7 +66,6 @@ class SchoolYearsController extends Controller
             'name' => $school_year_name,
             'application_start' => $validated['application_start'] ?? null,
             'application_deadline' => $validated['application_deadline'] ?? null,
-            'exam_date' => $validated['exam_date'] ?? null,
             'guidelines' => $validated['guidelines'] ?? null,
         ]);
 
@@ -80,6 +80,8 @@ class SchoolYearsController extends Controller
         $module = 'School Years';
         $description = 'Created school year ' . $school_year_name;
         $this->setAuditLog($action, $module, $description, null, $school_year->toArray());
+
+        $this->logAdminActivity('created_school_year', 'Created school year ' . $school_year_name);
 
         return response()->json([
             'message' => 'School year created successfully!',
@@ -102,7 +104,6 @@ class SchoolYearsController extends Controller
             'status' => 'required',
             'application_start' => 'nullable|date',
             'application_deadline' => 'nullable|date',
-            'exam_date' => 'nullable|date',
             'guidelines' => 'nullable|string',
         ]);
 
@@ -138,7 +139,6 @@ class SchoolYearsController extends Controller
             'is_active' => $validated['status'],
             'application_start' => $validated['application_start'] ?? null,
             'application_deadline' => $validated['application_deadline'] ?? null,
-            'exam_date' => $validated['exam_date'] ?? null,
             'guidelines' => $validated['guidelines'] ?? null,
         ]);
 
@@ -146,6 +146,8 @@ class SchoolYearsController extends Controller
         $module = 'School Years';
         $description = 'Updated school year ' . $school_year_name;
         $this->setAuditLog($action, $module, $description, $old_values, $school_year->toArray());
+
+        $this->logAdminActivity('updated_school_year', 'Updated school year ' . $school_year_name);
 
         return response()->json([
             'message' => 'School year updated successfully!',
@@ -171,9 +173,42 @@ class SchoolYearsController extends Controller
             $description = 'Deleted school year ' . $school_year_name;
             $this->setAuditLog($action, $module, $description, $old_values, null);
 
+            $this->logAdminActivity('deleted_school_year', 'Deleted school year ' . $school_year_name);
+
             return response()->json([
                 'message' => 'School year deleted successfully!',
             ]);
         }
+    }
+
+    public function restore($id)
+    {
+        $school_year = SchoolYear::withTrashed()->findOrFail($id);
+
+        if (!$school_year->trashed()) {
+            return response()->json([
+                'message' => 'School year is not deleted!',
+            ], 400);
+        }
+
+        $school_year_name = $school_year->name;
+
+        $school_year->restore();
+
+        // Keep a single active school year: deactivate the restored one if another is already active
+        if ($school_year->is_active && SchoolYear::where('is_active', true)->where('id', '!=', $school_year->id)->exists()) {
+            $school_year->update(['is_active' => false]);
+        }
+
+        $action = ActionType::Updated->value;
+        $module = 'School Years';
+        $description = 'Restored school year ' . $school_year_name;
+        $this->setAuditLog($action, $module, $description, null, $school_year->toArray());
+
+        $this->logAdminActivity('updated_school_year', 'Restored school year ' . $school_year_name);
+
+        return response()->json([
+            'message' => 'School year restored successfully!',
+        ]);
     }
 }

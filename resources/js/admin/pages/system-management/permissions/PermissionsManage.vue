@@ -21,11 +21,13 @@ const form = reactive({
 
 const permissions = ref([]);
 const selected_permissions = ref([]);
+const permissionsLoading = ref(false);
 
 const getRolePermissions = (role) => {
     form.id = role.id;
     form.name = role.name;
 
+    permissionsLoading.value = true;
     axios.get(`/api/roles/${role.id}/permissions`)
         .then((response) => {
             permissions.value = response.data.permissions;
@@ -43,6 +45,9 @@ const getRolePermissions = (role) => {
                     group.permissions.map(p => p.id)
                 );
             }
+        })
+        .finally(() => {
+            permissionsLoading.value = false;
         });
 };
 
@@ -161,8 +166,14 @@ const isAllSelected = () => {
                         </button>
                     </div>
 
-                    <div class="row g-3">
-                        <div v-for="(group, index) in permissions" :key="index" class="col-md-6 col-lg-4">
+                    <div v-if="permissionsLoading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-3 mb-0 text-muted">Loading ...</p>
+                    </div>
+
+                    <template v-else>
+                        <div class="row g-3">
+                            <div v-for="(group, index) in permissions" :key="index" class="col-md-6 col-lg-4">
                             <div class="card h-100 shadow-sm">
                                 <div class="card-header bg-body">
                                     <div class="form-check">
@@ -193,6 +204,8 @@ const isAllSelected = () => {
                         <i class="bi bi-inbox display-1 text-muted"></i>
                         <p class="text-muted mt-3">No permissions available</p>
                     </div>
+                    </template>
+
                     <button type="submit" @click="handleSubmit" class="btn btn-primary btn-sm mt-3" :disabled="form.name === ROLE.SYSTEM_ADMINISTRATOR">
                         <i class="bi bi-floppy me-1"></i>Update
                     </button>

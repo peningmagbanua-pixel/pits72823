@@ -6,9 +6,11 @@ namespace App\Http\Controllers\Admin\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
+use App\Traits\AdminActivityLogsTrait;
 
 class LoginController extends Controller
 {
+    use AdminActivityLogsTrait;
     public function login(Request $request)
     {
         $request->validate([
@@ -39,6 +41,8 @@ class LoginController extends Controller
                 'last_login_ip' => $request->ip(),
             ]);
 
+            $this->logAdminActivity('logged_in', 'Admin logged in successfully.', ['email' => $user->email]);
+
             return redirect()->route('admin.dashboard');
         }
 
@@ -48,6 +52,12 @@ class LoginController extends Controller
 
     public function logout(Request $request)
     {
+        $user = Auth::guard('web')->user();
+
+        if ($user) {
+            $this->logAdminActivity('logged_out', 'Admin logged out.', ['email' => $user->email]);
+        }
+
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

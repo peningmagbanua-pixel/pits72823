@@ -2,16 +2,16 @@
 
 namespace App\Models\Applicant;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Applicant extends Authenticatable
 {
-    use HasFactory, Notifiable, HasUuids;
+    use HasFactory, HasUuids, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'lastname',
@@ -21,13 +21,14 @@ class Applicant extends Authenticatable
         'email',
         'google_id',
         'password',
+        'must_change_password',
         'is_active',
         'profile',
         'last_login_at',
         'last_login_ip',
 
         // Application Fields
-        'program',
+        'program_id',
         'date_of_birth',
         'place_of_birth',
         'citizenship',
@@ -48,8 +49,11 @@ class Applicant extends Authenticatable
         'ste_declaration',
 
         'application_status',
+        'rejection_reason',
+        'submitted_at',
         'schedule_id',
         'exam_status',
+        'school_year_id',
     ];
 
     public function scopeSearch($query, $term)
@@ -70,9 +74,24 @@ class Applicant extends Authenticatable
         return $this->belongsTo(\App\Models\Admin\ExamSchedule::class, 'schedule_id');
     }
 
+    public function schoolYear()
+    {
+        return $this->belongsTo(\App\Models\Admin\SchoolYear::class, 'school_year_id')->withTrashed();
+    }
+
+    public function program()
+    {
+        return $this->belongsTo(\App\Models\Admin\Program::class, 'program_id')->withTrashed();
+    }
+
     public function activityLogs(): HasMany
     {
         return $this->hasMany(ActivityLog::class, 'applicant_id');
+    }
+
+    public function applicantDocuments(): HasMany
+    {
+        return $this->hasMany(ApplicantDocument::class, 'applicant_id');
     }
 
     protected $hidden = [
@@ -84,7 +103,9 @@ class Applicant extends Authenticatable
     {
         return [
             'last_login_at' => 'datetime',
+            'submitted_at' => 'datetime',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
             'ste_declaration' => 'array',
         ];
     }

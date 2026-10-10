@@ -757,7 +757,7 @@ onMounted(async () => {
                                             <th class="align-middle">Program / For</th>
                                             <th class="text-center align-middle">Required</th>
                                             <th class="text-center align-middle">Active</th>
-                                            <th class="text-center align-middle">Action/s</th>
+                                            <th class="text-center align-middle actions-cell">Action/s</th>
                                         </tr>
                                     </thead>
                                     <tbody v-if="requirementsLoading">
@@ -791,7 +791,7 @@ onMounted(async () => {
                                                 <span v-else
                                                     class="badge bg-secondary-subtle text-secondary">Inactive</span>
                                             </td>
-                                            <td class="text-center align-middle">
+                                            <td class="text-center align-middle actions-cell">
                                                 <button class="btn btn-info btn-sm me-1"
                                                     @click="openViewReqModal(req)"
                                                     title="View">

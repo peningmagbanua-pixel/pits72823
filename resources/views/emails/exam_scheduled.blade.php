@@ -1,4 +1,10 @@
 <!DOCTYPE html>
+<?php
+    $settingsPath = storage_path('app/landing_settings.json');
+    $ls = file_exists($settingsPath) ? (json_decode(file_get_contents($settingsPath), true) ?? []) : [];
+    $schoolName   = $ls['school_name']   ?? 'CNHS Online Application';
+    $contactEmail = $ls['contact_email'] ?? 'cnhs.edu.ph@gmail.com';
+?>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -25,7 +31,7 @@
             
             <div class="schedule-details">
                 <h3>Exam Details</h3>
-                <p><strong>Program:</strong> {{ $schedule->program }}</p>
+                <p><strong>Program:</strong> {{ $schedule->program->initials }}</p>
                 <p><strong>Date:</strong> {{ \Carbon\Carbon::parse($schedule->date)->format('F d, Y') }}</p>
                 <p><strong>Time:</strong> {{ $schedule->time_slot }}</p>
                 <p><strong>Room:</strong> {{ $schedule->room }}</p>
@@ -36,7 +42,7 @@
             <p>If you have any questions, please contact the admissions office.</p>
             
             <p>Best regards,<br>
-            CNHS Admissions Team</p>
+            {{ $schoolName }} Admissions Team</p>
         </div>
         <div class="footer">
             <p>This is an automated message. Please do not reply to this email.</p>

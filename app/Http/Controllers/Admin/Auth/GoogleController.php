@@ -8,13 +8,19 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
+use App\Traits\AdminActivityLogsTrait;
 
 class GoogleController extends Controller
 {
+    use AdminActivityLogsTrait;
     public function redirectToGoogle()
     {
         return Socialite::driver('google')
-            ->with(['redirect_uri' => config('services.google.redirect')])
+            ->with([
+                'redirect_uri' => config('services.google.redirect'),
+                'prompt' => 'select_account',
+            ])
+            ->stateless()
             ->redirect();
     }
 
@@ -57,6 +63,8 @@ class GoogleController extends Controller
         }
 
         Auth::login($user);
+
+        $this->logAdminActivity('logged_in_via_google', 'Admin logged in via Google SSO.', ['email' => $user->email]);
 
         return redirect('/admin/dashboard');
     }

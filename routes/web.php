@@ -103,19 +103,9 @@ Route::middleware(['auth:web', 'session-timeout:web', 'must-change-password:web'
     Route::get('/admin/dashboard', fn () => view('admin.dashboard'))->name('admin.dashboard');
 
     // Serve uploaded applicant files through PHP (bypasses Windows symlink limitation in php artisan serve).
-    // Files live on the private disk and are only readable by authenticated staff with permission.
-    Route::get('/admin/files/{path}', function (string $path) {
-        if (! str_starts_with($path, 'applications/') || str_contains($path, '..')) {
-            abort(403, 'You do not have access to this file.');
-        }
-
-        if (! Storage::disk('local')->exists($path)) {
-            abort(404, 'File not found.');
-        }
-        $fullPath = Storage::disk('local')->path($path);
-
-        return response()->file($fullPath);
-    })->where('path', '.*')->middleware('permission:browse applications')->name('admin.file.serve');
+    // Files live on the private disk and are only readable by authenticated staff with permission
+    // who are allowed to access the owning applicant's program.
+    Route::get('/admin/files/{path}', [Admin\ApplicantsController::class, 'serveFile'])->where('path', '.*')->middleware('permission:browse applications')->name('admin.file.serve');
 
     Route::get('/admin/{any}', fn () => view('admin.dashboard'))->where('any', '.*');
 
@@ -158,13 +148,13 @@ Route::middleware(['auth:web', 'session-timeout:web', 'must-change-password:web'
 
         // System Administration
         // Academic Management
-        Route::get('/school-years', [Admin\SchoolYearsController::class, 'index'])->middleware('permission:browse school-years|browse academic-setup');
+        Route::get('/school-years', [Admin\SchoolYearsController::class, 'index'])->middleware('permission:browse school-years|browse academic-setup|browse reports|browse applications|browse exam-scheduling|browse settings');
         Route::post('/school-years', [Admin\SchoolYearsController::class, 'store'])->middleware('permission:create school-years');
         Route::put('/school-years/{id}', [Admin\SchoolYearsController::class, 'update'])->middleware('permission:update school-years');
         Route::delete('/school-years/{id}', [Admin\SchoolYearsController::class, 'delete'])->middleware('permission:delete school-years');
         Route::post('/school-years/{id}/restore', [Admin\SchoolYearsController::class, 'restore'])->middleware('permission:delete school-years');
 
-        Route::get('/programs', [Admin\ProgramsController::class, 'index'])->middleware('permission:browse programs|browse academic-setup');
+        Route::get('/programs', [Admin\ProgramsController::class, 'index'])->middleware('permission:browse programs|browse academic-setup|browse reports|browse applications|browse exam-scheduling|browse settings');
         Route::post('/programs', [Admin\ProgramsController::class, 'store'])->middleware('permission:create programs');
         Route::put('/programs/{id}', [Admin\ProgramsController::class, 'update'])->middleware('permission:update programs');
         Route::delete('/programs/{id}', [Admin\ProgramsController::class, 'delete'])->middleware('permission:delete programs');

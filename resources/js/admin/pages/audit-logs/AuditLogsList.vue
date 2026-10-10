@@ -245,7 +245,7 @@ onMounted(async () => {
                                             <th class="text-center align-middle">Action</th>
                                             <th class="text-center align-middle">Module</th>
                                             <th class="text-center align-middle">Description</th>
-                                            <th class="text-center align-middle">Action/s</th>
+                                            <th class="text-center align-middle actions-cell">Action/s</th>
                                         </tr>
                                     </thead>
                                     <tbody v-if="loading">
@@ -279,7 +279,7 @@ onMounted(async () => {
                                                 </span>
                                             </td>
                                             <td class="align-middle">{{ log.description }}</td>
-                                            <td class="text-center align-middle">
+                                            <td class="text-center align-middle actions-cell">
                                                 <button class="btn btn-info btn-sm"
                                                     @click="viewLog(log)" data-bs-toggle="modal"
                                                     data-bs-target="#view-audit-log">

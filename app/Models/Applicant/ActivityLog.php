@@ -30,7 +30,7 @@ class ActivityLog extends Model
 
     public function applicant(): BelongsTo
     {
-        return $this->belongsTo(Applicant::class);
+        return $this->belongsTo(Applicant::class)->withTrashed();
     }
 
     /**

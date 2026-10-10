@@ -1,0 +1,62 @@
+[
+    {
+        "name": "SF9 / Report Card",
+        "description": "Current school year report card",
+        "notice": "SF9 Grade Requirements: At least 85% in English, Science, and Mathematics; at least 83% in other subjects; no grade lower than 80%.",
+        "programs": [],
+        "field_key": "sf9_file",
+        "is_required": true,
+        "is_active": true,
+        "sort_order": 1
+    },
+    {
+        "name": "Certificate of Good Moral Character",
+        "description": null,
+        "notice": null,
+        "programs": ["STE"],
+        "field_key": "good_moral_file",
+        "is_required": true,
+        "is_active": true,
+        "sort_order": 2
+    },
+    {
+        "name": "Health Declaration Form",
+        "description": null,
+        "notice": null,
+        "programs": ["STE"],
+        "field_key": "ste_declaration",
+        "is_required": true,
+        "is_active": true,
+        "sort_order": 3
+    },
+    {
+        "name": "PSA Birth Certificate",
+        "description": null,
+        "notice": null,
+        "programs": [],
+        "field_key": null,
+        "is_required": true,
+        "is_active": false,
+        "sort_order": 4
+    },
+    {
+        "name": "Photocopy of Valid ID",
+        "description": null,
+        "notice": null,
+        "programs": [],
+        "field_key": null,
+        "is_required": true,
+        "is_active": false,
+        "sort_order": 5
+    },
+    {
+        "name": "2x2 ID Photo",
+        "description": null,
+        "notice": null,
+        "programs": [],
+        "field_key": null,
+        "is_required": true,
+        "is_active": false,
+        "sort_order": 6
+    }
+]

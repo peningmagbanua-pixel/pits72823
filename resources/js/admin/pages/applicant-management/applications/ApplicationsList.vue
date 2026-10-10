@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { Bootstrap5Pagination } from 'laravel-vue-pagination';
-import { SORT, SORT_FIELD, escapeHtml } from '../../../../constants';
+import { SORT, SORT_FIELD } from '../../../../constants';
 import ApplicantViewModal from '../applicants/ApplicantViewModal.vue';
 import { useAuthUserStore } from '../../../stores/AuthUserStore';
 
@@ -93,66 +93,6 @@ const clickSort = (field) => {
         sortField.value = field;
     }
     fetchApplicants();
-};
-
-const printApproved = async () => {
-    try {
-        const params = {};
-        if (programFilter.value) params.program_id = programFilter.value;
-
-        const res = await axios.get('/api/applicants/print-approved', { params });
-        const data = res.data;
-        const printWindow = window.open('', '_blank');
-
-        let html = `<!DOCTYPE html>
-<html><head><title>Approved Applicants</title>
-<style>
-    body { font-family: Arial, sans-serif; padding: 40px; }
-    h2 { text-align: center; margin-bottom: 5px; }
-    .subtitle { text-align: center; color: #555; margin-bottom: 30px; }
-    h3 { background: #2c3e50; color: #fff; padding: 8px 12px; margin: 20px 0 10px; font-size: 14px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-    th, td { border: 1px solid #999; padding: 8px 12px; text-align: left; font-size: 13px; }
-    th { background: #2c3e50; color: #fff; font-weight: 600; }
-    tr:nth-child(even) { background: #f9f9f9; }
-    .text-center { text-align: center; }
-    .page-break { page-break-after: always; }
-    .school-name { text-align: center; font-size: 16px; font-weight: bold; color: #333; }
-    @media print { .no-print { display: none; } }
-</style></head><body>
-<div class="school-name">Carranglan National High School</div>
-<h2>Approved Applicants</h2>`;
-
-        if (data.spict && data.spict.length > 0) {
-            html += `<h3>SPICT</h3><table><thead><tr><th class="text-center">#</th><th>Name</th><th>Date Applied</th></tr></thead><tbody>`;
-            data.spict.forEach((a, i) => {
-                const name = [escapeHtml(a.lastname) + ',', escapeHtml(a.firstname), escapeHtml(a.middlename)].filter(Boolean).join(' ');
-                html += `<tr><td class="text-center">${i + 1}</td><td>${name}</td><td>${escapeHtml(a.created_at ? a.created_at.split(' ')[0] : '')}</td></tr>`;
-            });
-            html += `</tbody></table><div class="page-break"></div>`;
-        }
-
-        if (data.ste && data.ste.length > 0) {
-            html += `<h3>STE</h3><table><thead><tr><th class="text-center">#</th><th>Name</th><th>Date Applied</th></tr></thead><tbody>`;
-            data.ste.forEach((a, i) => {
-                const name = [escapeHtml(a.lastname) + ',', escapeHtml(a.firstname), escapeHtml(a.middlename)].filter(Boolean).join(' ');
-                html += `<tr><td class="text-center">${i + 1}</td><td>${name}</td><td>${escapeHtml(a.created_at ? a.created_at.split(' ')[0] : '')}</td></tr>`;
-            });
-            html += `</tbody></table>`;
-        }
-
-        if (!data.spict?.length && !data.ste?.length) {
-            html += `<p style="text-align:center;margin-top:40px">No approved applicants found.</p>`;
-        }
-
-        html += `</body></html>`;
-        printWindow.document.write(html);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => printWindow.print(), 500);
-    } catch (e) {
-        console.error(e);
-    }
 };
 
 const openViewModal = async (applicant) => {
@@ -261,7 +201,7 @@ onMounted(async () => {
                                             <th class="align-middle text-center">Email</th>
                                             <th class="align-middle text-center">Program</th>
                                             <th class="align-middle text-center">Status</th>
-                                            <th class="align-middle text-center">Action/s</th>
+                                            <th class="align-middle text-center actions-cell">Action/s</th>
                                         </tr>
                                     </thead>
                                     <tbody v-if="loading">
@@ -290,7 +230,7 @@ onMounted(async () => {
                                                     {{ a.application_status }}
                                                 </span>
                                             </td>
-                                            <td class="align-middle text-center">
+                                            <td class="align-middle text-center actions-cell">
                                                 <button v-if="applicantPermissions.read" class="btn btn-info btn-sm"
                                                     @click="openViewModal(a)" title="View Application">
                                                     <i class="bi bi-eye-fill"></i>

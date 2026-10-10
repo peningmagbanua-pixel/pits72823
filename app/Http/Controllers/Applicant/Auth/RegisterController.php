@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class RegisterController extends Controller
 {
@@ -28,10 +29,10 @@ class RegisterController extends Controller
     {
         $validated = $request->validate([
             'fullname' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:applicants'],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('applicants', 'email')->whereNull('deleted_at')],
         ]);
 
-        // Check if email is already registered as an admin/teacher
+        // Check if email is already registered as an active admin/teacher
         $adminUser = User::where('email', $validated['email'])->first();
         if ($adminUser) {
             return back()->withInput()->withErrors([
@@ -80,6 +81,7 @@ class RegisterController extends Controller
             'extname' => $extname,
             'email' => $validated['email'],
             'password' => Hash::make($generatedPassword),
+            'must_change_password' => true,
             'is_active' => true,
             // application_status intentionally omitted — uses DB column default
         ];

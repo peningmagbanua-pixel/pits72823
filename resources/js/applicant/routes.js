@@ -6,6 +6,9 @@ import ProgramSelection from "./pages/application/ProgramSelection.vue";
 import ApplicationForm from "./pages/application/ApplicationForm.vue";
 import ApplicationStatus from "./pages/application/ApplicationStatus.vue";
 
+// Activity Logs
+import ActivityLogs from "./pages/activity-logs/ActivityLogs.vue";
+
 // FAQ
 import Faq from "./pages/faq/Faq.vue";
 
@@ -39,6 +42,13 @@ export default [
         path: '/applicant/application/status',
         name: 'applicant.application.status',
         component: ApplicationStatus,
+    },
+
+    // Activity Logs
+    {
+        path: '/applicant/activity-logs',
+        name: 'applicant.activity-logs',
+        component: ActivityLogs,
     },
 
     // Profile

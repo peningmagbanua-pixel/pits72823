@@ -3031,3 +3031,365 @@ nav[role="navigation"]:not([aria-label]):not([aria-labelledby])::before {
         line-height: 10px;
     }
 }
+
+/* ============================================================
+   RESPONSIVE FIXES — mobile / tablet support
+   Appended — does not modify any existing rules above
+   ============================================================ */
+
+/* ── Fix sidebar overlay to cover the full viewport on mobile ── */
+.sidebar-expand-lg.sidebar-open .sidebar-overlay {
+    position: fixed !important;
+}
+
+/* ── app-wrapper: collapse grid to single column on mobile ──── */
+@media (max-width: 991.98px) {
+    .app-wrapper {
+        grid-template-areas:
+            "lte-app-header"
+            "lte-app-main"
+            "lte-app-footer";
+        grid-template-columns: 1fr;
+        grid-template-rows: min-content 1fr min-content;
+    }
+
+    .app-sidebar {
+        grid-area: lte-app-sidebar;
+    }
+
+    .app-content {
+        padding: 0 0.35rem;
+    }
+
+    .app-content-header {
+        padding: 0.6rem 0.35rem !important;
+    }
+
+    /* Breadcrumb: stack under title on very small screens */
+    .app-content-header .row {
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+    .app-content-header .float-sm-end {
+        float: none !important;
+    }
+}
+
+/* ── Table toolbar rows: stack on mobile ───────────────────── */
+@media (max-width: 767.98px) {
+
+    /* Paginate + search toolbar */
+    .row.mb-1 > [class*="col-md-"],
+    .row.mb-2 > [class*="col-md-"],
+    .row.mb-3 > [class*="col-md-"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 0 0 100% !important;
+        margin-bottom: 0.4rem;
+    }
+
+    /* Stat cards: 2-per-row already via col-6, keep that */
+
+    /* Header nav: reduce padding */
+    .app-header .container-fluid {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    /* Hide fullscreen toggle on small devices */
+    .app-header .nav-item .bi-arrows-fullscreen,
+    .app-header .nav-item .bi-fullscreen-exit {
+        display: none !important;
+    }
+
+    /* Eye-protection dropdown: prevent overflow */
+    .app-header .dropdown-menu[style*="min-width: 320px"],
+    .app-header .dropdown-menu[style*="min-width:320px"] {
+        min-width: calc(100vw - 2rem) !important;
+        max-width: calc(100vw - 2rem) !important;
+        right: 0 !important;
+        left: auto !important;
+    }
+
+    /* User dropdown: full width on tiny screens */
+    .app-header .dropdown-menu[style*="min-width: 250px"],
+    .app-header .dropdown-menu[style*="min-width:250px"] {
+        min-width: calc(100vw - 2rem) !important;
+        right: 0 !important;
+        left: auto !important;
+    }
+
+    /* Card body padding on small screens */
+    .card-body {
+        padding: 0.75rem !important;
+    }
+
+    /* Button groups in table toolbars */
+    .d-flex.justify-content-between.mb-2 {
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+
+    /* Filter/control clusters inside toolbars: wrap instead of overflowing the page */
+    .d-flex.justify-content-between.mb-2 > .d-flex {
+        flex-wrap: wrap;
+    }
+
+    /* Pagination: center on mobile */
+    .pagination {
+        justify-content: center !important;
+    }
+
+    /* Showing X to Y of Z entries: center */
+    .row.mt-3 > div:first-child {
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+    .row.mt-3 > div:last-child {
+        display: flex;
+        justify-content: center;
+    }
+}
+
+/* ── Extra-small phones (< 480px) ──────────────────────────── */
+@media (max-width: 479.98px) {
+
+    /* Stat cards: still 2-per-row (col-6 handles it) but shrink padding */
+    .dc-stat, .rp-stat {
+        padding: 12px 6px !important;
+    }
+    .dc-stat__num, .rp-stat__num {
+        font-size: 1.4rem !important;
+    }
+
+    /* Form modals: full-width */
+    .modal-dialog {
+        margin: 0.5rem !important;
+        max-width: calc(100vw - 1rem) !important;
+    }
+
+    /* Tables: ensure horizontal scroll wrapper */
+    .table-responsive-sm {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Sidebar brand text: truncate if needed */
+    .brand-text {
+        font-size: 0.85rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 140px;
+        display: inline-block;
+    }
+}
+
+/* Keep page content and data tables usable at tablet and phone widths. */
+.app-main,
+.app-content,
+.app-main .container-fluid,
+.app-main .row,
+.app-main .card,
+.app-main .card-body {
+    min-width: 0;
+}
+
+.table-responsive-sm {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive-sm > .table {
+    margin-bottom: 0;
+}
+
+/* Action cells: keep button clusters on one line so the table scrolls
+   horizontally instead of wrapping buttons when the viewport narrows. */
+.table .actions-cell {
+    white-space: nowrap;
+}
+
+.dc-date {
+    white-space: nowrap;
+}
+
+@media (max-width: 767.98px) {
+    .app-content-header h1,
+    .app-content-header h2,
+    .app-content-header h3 {
+        font-size: 1.25rem;
+    }
+
+    .app-content-header .breadcrumb {
+        display: flex;
+        flex-wrap: wrap;
+        line-height: 1.5;
+        row-gap: 0.25rem;
+    }
+
+    .app-header .dropdown-menu[style*="min-width: 320px"],
+    .app-header .dropdown-menu[style*="min-width:320px"] {
+        min-width: min(320px, calc(100vw - 1rem)) !important;
+        max-width: calc(100vw - 1rem) !important;
+    }
+
+    .app-header .dropdown-menu[style*="min-width: 250px"],
+    .app-header .dropdown-menu[style*="min-width:250px"] {
+        min-width: min(250px, calc(100vw - 1rem)) !important;
+        max-width: calc(100vw - 1rem) !important;
+    }
+
+    .app-header .dropdown-menu {
+        overflow-wrap: anywhere;
+    }
+
+    .app-main .card-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .app-main .btn-toolbar,
+    .app-main .btn-group {
+        flex-wrap: wrap;
+    }
+
+    .app-main .pagination {
+        flex-wrap: wrap;
+        gap: 0.15rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .app-content {
+        padding-right: 0.25rem;
+        padding-left: 0.25rem;
+    }
+
+    .app-main .modal-dialog {
+        width: auto;
+        max-width: calc(100vw - 1rem);
+        margin: 0.5rem;
+    }
+
+    .app-main .modal-content {
+        max-height: calc(100dvh - 1rem);
+    }
+
+    .app-main .modal-body {
+        overflow-y: auto;
+    }
+}
+
+/* ── Tablet (768px – 991px): minor tweaks ──────────────────── */
+@media (min-width: 768px) and (max-width: 991.98px) {
+    .app-content {
+        padding: 0 0.5rem;
+    }
+
+    /* 3-col button rows in toolbars */
+    .row.mb-1 > .col-md-3 {
+        width: 50% !important;
+        max-width: 50% !important;
+        flex: 0 0 50% !important;
+    }
+    .row.mb-1 > .col-md-7 {
+        display: none;
+    }
+    .row.mb-1 > .col-md-2 {
+        width: 50% !important;
+        max-width: 50% !important;
+        flex: 0 0 50% !important;
+    }
+}
+
+/* ── Keep AdminLTE sidebar-open overlay fixed ──────────────── */
+@media (max-width: 991.98px) {
+    .sidebar-open .sidebar-overlay {
+        position: fixed !important;
+        z-index: 1037 !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+    }
+}
+
+/* ── Landing page: index.blade.php tweaks ──────────────────── */
+@media (max-width: 767.98px) {
+    .hero-logo-col {
+        display: none !important;
+    }
+    .hero-section {
+        padding-top: 90px !important;
+        padding-bottom: 50px !important;
+        min-height: auto !important;
+    }
+}
+
+/* ============================================================
+   PAGE LOADING INDICATOR
+   Thin top-bar progress line on SPA route changes +
+   full-page overlay on initial boot.
+   ============================================================ */
+
+/* ── Top progress bar ── */
+#cnhs-page-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    width: 0%;
+    background: #8B0000;
+    z-index: 99999;
+    transition: width 0.3s ease, opacity 0.4s ease;
+    opacity: 0;
+    pointer-events: none;
+}
+#cnhs-page-loader.loading {
+    opacity: 1;
+    width: 80%;
+    transition: width 8s cubic-bezier(0.1, 0.05, 0, 1);
+}
+#cnhs-page-loader.done {
+    width: 100% !important;
+    opacity: 0;
+    transition: width 0.2s ease, opacity 0.4s ease 0.15s;
+}
+
+/* ── Initial boot overlay ── */
+#cnhs-boot-overlay {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 99998;
+    transition: opacity 0.35s ease;
+}
+#cnhs-boot-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+#cnhs-boot-overlay .cnhs-spinner {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 16px;
+}
+#cnhs-boot-overlay p {
+    font-size: 13px;
+    color: #8B0000;
+    font-weight: 600;
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+[data-bs-theme="dark"] #cnhs-boot-overlay {
+    background: #1c1c1c;
+}
+[data-bs-theme="dark"] #cnhs-page-loader {
+    background: #f5a5a5;
+}

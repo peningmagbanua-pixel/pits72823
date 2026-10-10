@@ -12,6 +12,7 @@ export default function useUserForm() {
         roles: [],
         admin: '',
         status: null,
+        program_access: [],
     });
 
     const resetForm = () => {
@@ -24,6 +25,7 @@ export default function useUserForm() {
         form.roles = [];
         form.admin = '';
         form.status = null;
+        form.program_access = [];
     };
 
     const fillForm = (user) => {
@@ -36,6 +38,7 @@ export default function useUserForm() {
         form.admin = user.is_system_administrator ? 'Yes' : 'No';
         form.status = user.is_active;
         form.roles = user.is_system_administrator ? [] : (user.role_ids || []);
+        form.program_access = user.is_system_administrator ? [] : (user.program_access || []);
     };
 
     return { form, resetForm, fillForm };

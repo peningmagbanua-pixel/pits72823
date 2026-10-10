@@ -86,9 +86,14 @@ class PermissionsController extends Controller
 
     public function checkPermissions($category)
     {
-        $auth_user = $this->callLoggedUser();
-
         $lowercase_category = strtolower($category);
+
+        $valid_categories = PermissionTitle::pluck('name')
+            ->map(fn ($name) => strtolower(str_replace(' ', '-', $name)));
+
+        abort_unless($valid_categories->contains($lowercase_category), 404);
+
+        $auth_user = $this->callLoggedUser();
 
         return [
             'browse' => $auth_user->can("browse $lowercase_category"),

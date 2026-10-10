@@ -29,10 +29,12 @@ class GoogleController extends Controller
                 ->stateless()
                 ->user();
 
-            // Check if email exists as an applicant first
+            // Check if an active applicant account exists for this email.
+            // Soft-deleted accounts are ignored so the email can register again.
             $applicant = Applicant::where('email', $googleUser->getEmail())->first();
 
             if ($applicant) {
+
                 // Applicant account found — link Google SSO if not already linked
                 $applicant->update([
                     'google_id' => $applicant->google_id ?? $googleUser->getId(),
@@ -71,6 +73,7 @@ class GoogleController extends Controller
                 'email'      => $googleUser->getEmail(),
                 'google_id'  => $googleUser->getId(),
                 'password'   => bcrypt($plainPassword),
+                'must_change_password' => true,
                 'is_active'  => true,
                 'profile'    => $googleUser->getAvatar(),
             ]);
@@ -82,14 +85,6 @@ class GoogleController extends Controller
                 ['email' => $applicant->email]
             );
 
-            // Send login credentials to the applicant's email for email/password login
-            try {
-                Mail::to($applicant->email)
-                    ->send(new ApplicantAccountCreatedMail($applicant, $plainPassword));
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Registration email failed for ' . $applicant->email . ': ' . $e->getMessage());
-            }
-
             Auth::guard('applicant')->login($applicant);
             request()->session()->regenerate();
 
@@ -97,6 +92,14 @@ class GoogleController extends Controller
                 'last_login_at' => now(),
                 'last_login_ip' => request()->ip(),
             ]);
+
+            // Send login credentials to the applicant's Gmail
+            try {
+                Mail::to($applicant->email)
+                    ->send(new ApplicantAccountCreatedMail($applicant, $plainPassword));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Registration email failed for ' . $applicant->email . ': ' . $e->getMessage());
+            }
 
             return redirect()->route('applicant.dashboard');
 

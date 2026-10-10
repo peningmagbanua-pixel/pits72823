@@ -1,11 +1,19 @@
 <!DOCTYPE html>
+<?php
+    $settingsPath = storage_path('app/landing_settings.json');
+    $ls = file_exists($settingsPath) ? (json_decode(file_get_contents($settingsPath), true) ?? []) : [];
+    $schoolName     = $ls['school_name']     ?? 'CNHS Online Application';
+    $contactEmail   = $ls['contact_email']   ?? 'cnhs.edu.ph@gmail.com';
+    $contactPhone   = $ls['contact_phone']   ?? '(+63) 44-291-2340';
+    $contactAddress = $ls['contact_address'] ?? 'Quezon Street, F.C. Otic Poblacion (Brgy. II), Carranglan, Nueva Ecija';
+?>
 <html>
 <head>
     <title>Account Created</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
     <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
-        <h2 style="color: #2c3e50;">Welcome to CNHS Online Application System</h2>
+        <h2 style="color: #2c3e50;">Welcome to {{ $schoolName }}</h2>
 
         <p>Hello <strong>{{ $applicant->firstname }} {{ $applicant->lastname }}</strong>,</p>
 
@@ -37,7 +45,7 @@
         <p style="color: #666; font-size: 12px;">
             If you have any questions or need assistance, please contact the CNHS Support Team.<br><br>
             Best regards,<br>
-            <strong>CNHS Online Application System</strong>
+            <strong>{{ $schoolName }}</strong>
         </p>
     </div>
 </body>

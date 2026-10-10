@@ -22,7 +22,7 @@ class ApplicationStatusNotificationEmail extends Mailable
     {
         $statusLabel = match($this->status) {
             'approved' => 'Approved',
-            'rejected' => 'Not Approved',
+            'rejected' => 'Rejected',
             'under_review' => 'Under Review',
             'exam_scheduled' => 'Exam Scheduled',
             default => ucfirst(str_replace('_', ' ', $this->status)),

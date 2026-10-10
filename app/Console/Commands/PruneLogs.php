@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Admin\AdminActivityLog;
 use App\Models\Admin\AuditLog;
 use App\Models\Applicant\ActivityLog;
 use Illuminate\Console\Command;
@@ -13,7 +14,7 @@ class PruneLogs extends Command
 
     protected $signature = 'app:prune-logs';
 
-    protected $description = 'Delete audit logs and applicant activity logs older than 30 days';
+    protected $description = 'Delete audit logs and activity logs older than 30 days';
 
     public function handle()
     {
@@ -21,8 +22,9 @@ class PruneLogs extends Command
 
         $auditDeleted = AuditLog::where('created_at', '<', $cutoff)->delete();
         $activityDeleted = ActivityLog::where('created_at', '<', $cutoff)->delete();
+        $adminActivityDeleted = AdminActivityLog::where('created_at', '<', $cutoff)->delete();
 
-        $this->info("Deleted {$auditDeleted} audit log(s) and {$activityDeleted} applicant activity log(s) older than ".self::RETENTION_DAYS.' days.');
+        $this->info("Deleted {$auditDeleted} audit log(s), {$activityDeleted} applicant activity log(s) and {$adminActivityDeleted} admin activity log(s) older than ".self::RETENTION_DAYS.' days.');
 
         return self::SUCCESS;
     }

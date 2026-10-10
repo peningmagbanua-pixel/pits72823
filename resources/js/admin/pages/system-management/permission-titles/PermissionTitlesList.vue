@@ -201,7 +201,7 @@ onMounted(() => {
                                             </th>
                                             <th class="text-center align-middle">Title Name</th>
                                             <th class="text-center align-middle">Permissions Count</th>
-                                            <th class="text-center align-middle">Action/s</th>
+                                            <th class="text-center align-middle actions-cell">Action/s</th>
                                         </tr>
                                     </thead>
                                     <tbody v-if="loading">
@@ -220,7 +220,7 @@ onMounted(() => {
                                             <td class="text-center align-middle">
                                                 <span class="badge bg-primary-subtle text-primary">{{ permissionTitle.permissions_count }}</span>
                                             </td>
-                                            <td class="text-center align-middle">
+                                            <td class="text-center align-middle actions-cell">
                                                 <template v-if="showDeleted">
                                                     <button v-if="permissions.delete" type="button" class="btn btn-success btn-sm"
                                                         @click="restorePermissionTitle(permissionTitle.id)">

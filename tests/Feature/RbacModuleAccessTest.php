@@ -4,12 +4,18 @@ namespace Tests\Feature;
 
 use App\Models\Admin\AuditLog;
 use App\Models\Admin\Permission;
+use App\Models\Admin\PermissionTitle;
+use App\Models\Admin\Program;
 use App\Models\Admin\Role;
 use App\Models\Admin\User;
+use App\Models\Applicant\Applicant;
+use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\EncoderPermissionsSeeder;
 use Database\Seeders\PermissionTitlesSeeder;
+use Database\Seeders\ProgramsSeeder;
 use Database\Seeders\RolesTableSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -402,5 +408,222 @@ class RbacModuleAccessTest extends TestCase
         $this->assertFalse($encoder->permissions()->where('name', 'read audit-logs')->exists());
 
         $this->assertSame(16, $encoder->permissions()->count());
+    }
+
+    public function test_fresh_install_seeder_produces_expected_permission_state(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
+
+        $encoder = Role::where('name', 'Encoder')->firstOrFail();
+        $expected = [
+            'browse academic-setup',
+            'browse applicant-accounts',
+            'browse applications',
+            'browse audit-logs',
+            'browse dashboard',
+            'browse exam-scheduling',
+            'browse programs',
+            'browse reports',
+            'browse school-years',
+            'create exam-scheduling',
+            'read applicant-accounts',
+            'read applicants',
+            'read applications',
+            'update applicant-accounts',
+            'update applications',
+            'update exam-scheduling',
+        ];
+
+        $this->assertEqualsCanonicalizing(
+            $expected,
+            $encoder->permissions()->pluck('name')->all()
+        );
+
+        $this->assertFalse(
+            PermissionTitle::where('name', 'Special Programs')->exists()
+        );
+
+        $this->assertSame(
+            1,
+            Role::where('name', 'System Administrator')->count()
+        );
+        $this->assertSame(
+            1,
+            Role::where('name', 'Encoder')->count()
+        );
+    }
+
+    public function test_check_permissions_rejects_unknown_categories(): void
+    {
+        $user = $this->makeUser(['browse users']);
+
+        $this->actingAs($user)
+            ->getJson('/api/check/users/permissions')
+            ->assertStatus(200);
+
+        $this->actingAs($user)
+            ->getJson('/api/check/bogus-category/permissions')
+            ->assertStatus(404);
+
+        $this->actingAs($user)
+            ->getJson('/api/check/users%20roles/permissions')
+            ->assertStatus(404);
+    }
+
+    public function test_lookup_routes_accept_page_scoped_roles(): void
+    {
+        $reportsUser = $this->makeUser(['browse reports']);
+        $applicationsUser = $this->makeUser(['browse applications']);
+
+        $this->actingAs($reportsUser)
+            ->getJson('/api/school-years')
+            ->assertStatus(200);
+        $this->actingAs($reportsUser)
+            ->getJson('/api/programs')
+            ->assertStatus(200);
+        $this->actingAs($applicationsUser)
+            ->getJson('/api/programs')
+            ->assertStatus(200);
+
+        $this->actingAs($this->makeUser())
+            ->getJson('/api/programs')
+            ->assertStatus(403);
+    }
+
+    public function test_reports_are_scoped_to_the_staff_program(): void
+    {
+        $this->seed(ProgramsSeeder::class);
+
+        $spict = Program::where('initials', 'SPICT')->firstOrFail();
+        $ste = Program::where('initials', 'STE')->firstOrFail();
+
+        foreach ([[$spict, 'approved'], [$spict, 'approved'], [$ste, 'approved']] as [$program, $status]) {
+            Applicant::create([
+                'firstname' => 'Report',
+                'lastname' => 'Scoped',
+                'email' => Str::uuid().'@example.com',
+                'password' => 'password',
+                'program_id' => $program->id,
+                'application_status' => $status,
+            ]);
+        }
+
+        $spictStaff = $this->makeUser(['browse reports']);
+        $spictStaff->program_assignments()->create(['program' => 'SPICT']);
+
+        $summary = $this->actingAs($spictStaff)
+            ->getJson('/api/reports')
+            ->assertStatus(200)
+            ->json('summary');
+
+        $this->assertSame(2, $summary['total']);
+        $this->assertSame(2, $summary['approved']);
+
+        $adminSummary = $this->actingAs($this->makeSystemAdministrator())
+            ->getJson('/api/reports')
+            ->assertStatus(200)
+            ->json('summary');
+
+        $this->assertSame(3, $adminSummary['total']);
+
+        $approved = $this->actingAs($spictStaff)
+            ->getJson('/api/reports/print-approved')
+            ->assertStatus(200)
+            ->json('applicants');
+
+        $this->assertCount(2, $approved);
+    }
+
+    public function test_file_access_is_scoped_to_the_staff_program(): void
+    {
+        $this->seed(ProgramsSeeder::class);
+
+        Storage::fake('local');
+
+        $spict = Program::where('initials', 'SPICT')->firstOrFail();
+        $ste = Program::where('initials', 'STE')->firstOrFail();
+
+        $spictApplicant = Applicant::create([
+            'firstname' => 'File',
+            'lastname' => 'Owner',
+            'email' => Str::uuid().'@example.com',
+            'password' => 'password',
+            'program_id' => $spict->id,
+            'application_status' => 'pending',
+        ]);
+        $steApplicant = Applicant::create([
+            'firstname' => 'Other',
+            'lastname' => 'Owner',
+            'email' => Str::uuid().'@example.com',
+            'password' => 'password',
+            'program_id' => $ste->id,
+            'application_status' => 'pending',
+        ]);
+
+        Storage::disk('local')->put("applications/{$spictApplicant->id}/doc.pdf", 'spict');
+        Storage::disk('local')->put("applications/{$steApplicant->id}/doc.pdf", 'ste');
+
+        $steStaff = $this->makeUser(['browse applications']);
+        $steStaff->program_assignments()->create(['program' => 'STE']);
+
+        $this->actingAs($steStaff)
+            ->get('/admin/files/applications/'.$steApplicant->id.'/doc.pdf')
+            ->assertStatus(200);
+
+        $this->actingAs($steStaff)
+            ->get('/admin/files/applications/'.$spictApplicant->id.'/doc.pdf')
+            ->assertStatus(403);
+
+        $this->actingAs($steStaff)
+            ->get('/admin/files/other/path.pdf')
+            ->assertStatus(403);
+
+        $this->actingAs($this->makeSystemAdministrator())
+            ->get('/admin/files/applications/'.$spictApplicant->id.'/doc.pdf')
+            ->assertStatus(200);
+
+        $this->actingAs($this->makeUser())
+            ->get('/admin/files/applications/'.$steApplicant->id.'/doc.pdf')
+            ->assertStatus(403);
+    }
+
+    public function test_zero_permission_user_is_forbidden_from_all_read_apis(): void
+    {
+        $user = $this->makeUser();
+
+        $endpoints = [
+            '/api/dashboard/stats',
+            '/api/applicants',
+            '/api/applicant-accounts',
+            '/api/exam-schedules',
+            '/api/unscheduled-applicants',
+            '/api/reports',
+            '/api/reports/print',
+            '/api/reports/print-approved',
+            '/api/reports/print-exam-schedule',
+            '/api/audit-logs',
+            '/api/school-years',
+            '/api/programs',
+            '/api/users',
+            '/api/list/users',
+            '/api/roles',
+            '/api/list/roles',
+            '/api/all/roles',
+            '/api/roles/permission-matrix',
+            '/api/permission-titles',
+            '/api/landing-settings',
+            '/api/landing-settings/app-settings',
+            '/api/requirements',
+            '/api/application-period',
+            '/api/session-timeout-settings',
+            '/admin/files/applications/some-id/doc.pdf',
+        ];
+
+        foreach ($endpoints as $endpoint) {
+            $this->actingAs($user)
+                ->getJson($endpoint)
+                ->assertStatus(403, "Expected 403 for {$endpoint}");
+        }
     }
 }

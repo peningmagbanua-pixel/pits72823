@@ -32,7 +32,6 @@ class SchoolYearsResource extends JsonResource
             'status_color' => $status_color,
             'application_start' => $this->application_start,
             'application_deadline' => $this->application_deadline,
-            'exam_date' => $this->exam_date,
             'guidelines' => $this->guidelines,
         ];
     }

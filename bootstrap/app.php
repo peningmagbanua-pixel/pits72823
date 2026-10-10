@@ -15,8 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
     $middleware->trustProxies(at: '*');
     $middleware->alias([
-        'permission' => PermissionMiddleware::class,
-        'role' => RoleMiddleware::class,
+        'permission'   => PermissionMiddleware::class,
+        'role'         => RoleMiddleware::class,
+        'maintenance'  => \App\Http\Middleware\MaintenanceMiddleware::class,
+        'must-change-password' => \App\Http\Middleware\MustChangePassword::class,
+        'session-timeout' => \App\Http\Middleware\SessionTimeoutMiddleware::class,
     ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

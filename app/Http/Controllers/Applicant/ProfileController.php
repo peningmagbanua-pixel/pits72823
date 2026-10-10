@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\Applicant\Applicant;
+use App\Models\Applicant\ActivityLog;
 
 class ProfileController extends Controller
 {
@@ -20,7 +21,9 @@ class ProfileController extends Controller
             'name' => $name,
             'email' => $applicant->email,
             'profile' => $applicant->profile,
-            'program' => $applicant->program,
+            'program' => $applicant->program?->initials,
+            'application_status' => $applicant->application_status,
+            'must_change_password' => (bool) $applicant->must_change_password,
         ];
     }
 
@@ -60,6 +63,15 @@ class ProfileController extends Controller
             'email' => $validated['email'],
         ]);
 
+        ActivityLog::logActivity(
+            $applicant->id,
+            'profile_updated',
+            'Updated profile information.',
+            [],
+            $request->ip(),
+            $request->userAgent()
+        );
+
         return response()->json([
             'message' => 'Profile updated successfully!',
         ]);
@@ -82,6 +94,7 @@ class ProfileController extends Controller
 
         $applicant->update([
             'password' => bcrypt($validated['new_password']),
+            'must_change_password' => false,
         ]);
 
         return response()->json([

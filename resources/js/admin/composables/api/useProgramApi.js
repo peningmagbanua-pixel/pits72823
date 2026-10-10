@@ -17,6 +17,10 @@ export default {
         return axios.delete(`/api/programs/${id}`);
     },
 
+    restoreProgram(id) {
+        return axios.post(`/api/programs/${id}/restore`);
+    },
+
     checkPermissions() {
         return axios.get('/api/check/programs/permissions');
     }

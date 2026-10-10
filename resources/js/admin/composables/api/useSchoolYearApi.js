@@ -17,6 +17,10 @@ export default {
         return axios.delete(`/api/school-years/${id}`);
     },
 
+    restoreSchoolYear(id) {
+        return axios.post(`/api/school-years/${id}/restore`);
+    },
+
     checkPermissions() {
         return axios.get('/api/check/school-years/permissions');
     }

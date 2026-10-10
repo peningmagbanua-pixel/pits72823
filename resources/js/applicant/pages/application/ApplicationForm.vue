@@ -1,16 +1,19 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
+import axios from 'axios';
 import Swal from 'sweetalert2';
 import { Modal } from 'bootstrap';
 import { sweetAlert, processingAlert } from '@/sweetalert.js';
 import { useAuthApplicantStore } from '../../stores/AuthApplicantStore';
+import SignaturePad from '../../components/SignaturePad.vue';
 
-const route  = useRoute();
 const router = useRouter();
 const authApplicantStore = useAuthApplicantStore();
 
-const program = ref(route.query.program || '');
+// Selected program, resolved server-side from the program selection step.
+// The frontend only ever receives the public initials/name — never an id.
+const selectedProgram = ref(null);
 const loading = ref(true);
 const submitting = ref(false);
 
@@ -31,108 +34,196 @@ const form = ref({
     elementary_school_address: '',
 });
 
-// File refs
-const sf9File              = ref(null);
-const goodMoralFile        = ref(null);
+// Requirement files (keyed by requirement id)
+const requirements = ref([]);
+const files        = ref({});
 
-// Online STE Declaration
-const declarationStatements = [
-    'All information and documents submitted in this application are true, complete, and correct to the best of my knowledge.',
-    'I understand that any falsification or misrepresentation of information will result in the immediate disqualification of my application.',
-    'I voluntarily apply for the STE Program and commit to comply with all academic standards and policies of the school.',
-    'I understand that admission into the STE Program is conditional upon verification of all submitted requirements.',
-    'I consent to the collection and processing of my personal data for the purpose of this application, in accordance with the Data Privacy Act of 2012.',
+// Online STE Health Declaration
+const HEALTH_CONDITIONS = [
+    'Asthma', 'Bronchitis', 'Speech delay', 'Visual impairment',
+    'Hearing impairment', 'Allergy', 'Surgery', 'Others', 'None',
 ];
-const declarationAgreements = ref(Array(5).fill(false));
-const declaration          = ref({ acknowledged_name: '', parent_guardian_name: '', parent_agreement: false });
+const healthAgreed       = ref(false);
+const healthConditions   = ref([]);   // array of selected condition strings
+const othersText         = ref('');
+const healthGuardianName = ref('');
+const healthDateSigned   = ref('');
+const certAgreed         = ref(false);
+const healthSignature    = ref('');   // drawn signature (PNG data URL)
 const declarationCompleted = ref(false);
 const declarationSignedAt  = ref('');
+
+// Signature pad lives in its own nested modal; keep a ref to capture/clear it.
+const signaturePadRef = ref(null);
+
+// None / Others mutual-exclusion helpers
+const toggleCondition = (condition) => {
+    if (condition === 'None') {
+        if (healthConditions.value.includes('None')) {
+            healthConditions.value = [];
+        } else {
+            healthConditions.value = ['None'];
+            othersText.value = '';
+        }
+    } else {
+        // If None was checked, remove it
+        healthConditions.value = healthConditions.value.filter(c => c !== 'None');
+        const idx = healthConditions.value.indexOf(condition);
+        if (idx === -1) {
+            healthConditions.value.push(condition);
+        } else {
+            healthConditions.value.splice(idx, 1);
+            if (condition === 'Others') othersText.value = '';
+        }
+    }
+};
+const isChecked      = (c) => healthConditions.value.includes(c);
+const showOthersText = computed(() => healthConditions.value.includes('Others'));
+const today          = new Date().toISOString().slice(0, 10);
 
 // Validation errors
 const errors = ref({});
 
-const isSTE   = computed(() => program.value === 'STE');
-const isSPICT = computed(() => program.value === 'SPICT');
+const isSTE   = computed(() => selectedProgram.value?.initials === 'STE');
+
+// Already filtered server-side for the selected program.
+const applicableRequirements = computed(() => requirements.value);
+
+const requirementNotice = computed(() =>
+    applicableRequirements.value.find(r => r.notice)?.notice || ''
+);
+
+const errorKey = (req) => req.error_key;
+
+const requirementIcon = (req) => {
+    if (req.type === 'declaration')                   return 'bi bi-heart-pulse me-1 text-danger';
+    if (req.field_key === 'good_moral_file') return 'bi bi-award me-1 text-success';
+    return 'bi bi-file-earmark-text me-1 text-primary';
+};
+
+// Reapplication (previous application was rejected)
+const applicationStatus = ref('');
+const rejectionReason   = ref('');
 
 // ---------- Mount: guard + pre-fill ----------
 onMounted(async () => {
-    // If no program in query, redirect back to selection
-    if (!['SPICT', 'STE'].includes(program.value)) {
-        router.replace({ name: 'applicant.application.select-program' });
-        return;
-    }
-
+    // Access guard: the form is only for applicants who have not submitted
+    // yet, or whose previous application was rejected (reapplication).
+    let application = null;
+    let selected = null;
     try {
         const res = await axios.get('/api/applicant/application');
         if (res.data?.submitted) {
-            // Pre-fill form with existing data if they're returning
-            Object.assign(form.value, res.data);
-        } else {
-            // First visit: derive name fields from the registered account
-            const nameParts = (authApplicantStore.applicant?.name || '').trim().split(/\s+/).filter(Boolean);
-            form.value.firstname  = nameParts[0] || '';
-            form.value.middlename = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
-            form.value.lastname   = nameParts[nameParts.length - 1] || '';
+            application = res.data;
         }
+        selected = res.data?.selected_program || null;
     } catch (_) { /* ignore */ }
+
+    if (application && application.application_status !== 'rejected') {
+        router.replace({ name: 'applicant.application.status' });
+        return;
+    }
+
+    // The program is identified server-side from the program selection step.
+    // Without a valid selection (deep link, expired session, deactivated
+    // program), send the applicant back to the selection page.
+    if (!selected) {
+        router.replace({ name: 'applicant.application.select-program' });
+        return;
+    }
+    selectedProgram.value = selected;
+
+    // Fetch active requirements applicable to the selected program
+    // (the server filters by the public program initials).
+    try {
+        const res = await axios.get('/api/applicant/requirements', {
+            params: { program: selected.initials },
+        });
+        requirements.value = res.data;
+    } catch (e) {
+        console.error('Failed to fetch requirements:', e);
+    }
+
+    if (application) {
+        // Pre-fill form with existing data if they're returning
+        Object.assign(form.value, application);
+
+        if (application.application_status === 'rejected') {
+            applicationStatus.value = 'rejected';
+            rejectionReason.value = application.rejection_reason || '';
+        }
+    } else {
+        // First visit: derive name fields from the registered account
+        const nameParts = (authApplicantStore.applicant?.name || '').trim().split(/\s+/).filter(Boolean);
+        form.value.firstname  = nameParts[0] || '';
+        form.value.middlename = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
+        form.value.lastname   = nameParts[nameParts.length - 1] || '';
+    }
 
     loading.value = false;
 });
 
 // ---------- File input handlers ----------
-const onSf9Change              = (e) => { sf9File.value       = e.target.files[0] || null; };
-const onGoodMoralChange        = (e) => { goodMoralFile.value = e.target.files[0] || null; };
-
-// ---------- Online STE Declaration ----------
-const registeredName = computed(() => (authApplicantStore.applicant?.name || '').trim());
-
-const nameTokens = (value) => (value || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean);
-
-const namesMatch = (typed, expected) => {
-    const typedTokens    = nameTokens(typed);
-    const expectedTokens = nameTokens(expected);
-    return typedTokens.length > 0 && expectedTokens.length > 0
-        && expectedTokens.some((word) => typedTokens.includes(word));
+const onFileChange = (reqId, e) => {
+    files.value[reqId] = e.target.files[0] || null;
 };
 
-const nameMismatch = computed(() =>
-    !declaration.value.acknowledged_name ? 'The applicant acknowledgment is required.'
-    : !namesMatch(declaration.value.acknowledged_name, registeredName.value) ? 'The typed name does not match your registered name.'
-    : '');
-
-const parentNameMismatch = computed(() =>
-    !declaration.value.parent_guardian_name ? 'The parent/guardian acknowledgment is required.'
-    : !namesMatch(declaration.value.parent_guardian_name, form.value.parent_guardian_name) ? 'The typed name does not match the parent/guardian name entered in the form.'
-    : '');
-
 const canSaveDeclaration = computed(() =>
-    declarationAgreements.value.every(Boolean)
-    && declaration.value.parent_agreement
-    && !nameMismatch.value
-    && !parentNameMismatch.value
-    && form.value.date_of_birth
-    && form.value.sex
-    && form.value.complete_address.trim()
-    && form.value.parent_guardian_name.trim()
-    && form.value.contact_number.trim()
-    && form.value.elementary_school.trim()
+    healthAgreed.value
+    && certAgreed.value
+    && healthConditions.value.length > 0
+    && !(healthConditions.value.includes('Others') && !othersText.value.trim())
+    && healthGuardianName.value.trim()
+    && healthDateSigned.value
+    && healthSignature.value
 );
+
+// ---------- Signature pad (nested modal) ----------
+const padError = ref(false);
+
+const openSignaturePad = () => {
+    padError.value = false;
+    // Always start on a blank canvas; the applied signature is only replaced
+    // once the applicant confirms with "Use This Signature".
+    signaturePadRef.value?.clear();
+
+    const padElement = document.getElementById('hd-signature-modal');
+    Modal.getOrCreateInstance(padElement).show();
+};
+
+const clearSignature = () => {
+    signaturePadRef.value?.clear();
+    padError.value = false;
+};
+
+const applySignature = () => {
+    const dataURL = signaturePadRef.value?.toDataURL();
+    if (!dataURL) {
+        padError.value = true;
+        return;
+    }
+
+    healthSignature.value = dataURL;
+    padError.value = false;
+
+    const padElement = document.getElementById('hd-signature-modal');
+    const padInstance = Modal.getInstance(padElement);
+    if (padInstance) padInstance.hide();
+};
+
+const removeSignature = () => {
+    healthSignature.value = '';
+};
 
 const saveDeclaration = () => {
     if (!canSaveDeclaration.value) return;
 
     declarationCompleted.value = true;
-    declarationSignedAt.value = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    declarationSignedAt.value  = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     const modalElement = document.getElementById('ste-declaration-modal');
     const modalInstance = Modal.getInstance(modalElement);
-    if (modalInstance) {
-        modalInstance.hide();
-    }
+    if (modalInstance) modalInstance.hide();
 };
 
 const hasSteDeclarationErrors = computed(() =>
@@ -146,7 +237,6 @@ const handleSubmit = async () => {
     processingAlert('#submitBtn', 'Submitting your application…');
 
     const data = new FormData();
-    data.append('program',                    program.value);
     data.append('lastname',                   form.value.lastname);
     data.append('firstname',                  form.value.firstname);
     data.append('middlename',                 form.value.middlename);
@@ -161,14 +251,21 @@ const handleSubmit = async () => {
     data.append('elementary_school',          form.value.elementary_school);
     data.append('elementary_school_address',  form.value.elementary_school_address);
 
-    if (sf9File.value)        data.append('sf9_file',              sf9File.value);
-    if (goodMoralFile.value)  data.append('good_moral_file',       goodMoralFile.value);
+    applicableRequirements.value.forEach((req) => {
+        const file = files.value[req.id];
+        if (!file || req.type === 'declaration') return;
+        data.append(req.input_key, file);
+    });
 
     if (isSTE.value && declarationCompleted.value) {
-        data.append('ste_declaration[acknowledged_name]',    declaration.value.acknowledged_name);
-        data.append('ste_declaration[parent_guardian_name]', declaration.value.parent_guardian_name);
-        declarationAgreements.value.forEach((checked) => data.append('ste_declaration[agreements][]', checked ? 1 : 0));
-        data.append('ste_declaration[parent_agreement]', declaration.value.parent_agreement ? 1 : 0);
+        data.append('ste_declaration[learner_name]',       form.value.firstname + ' ' + form.value.lastname);
+        data.append('ste_declaration[health_agreed]',      healthAgreed.value ? '1' : '0');
+        healthConditions.value.forEach(c => data.append('ste_declaration[conditions][]', c));
+        data.append('ste_declaration[others_text]',        othersText.value || '');
+        data.append('ste_declaration[guardian_name]',      healthGuardianName.value);
+        data.append('ste_declaration[date_signed]',        healthDateSigned.value);
+        data.append('ste_declaration[signature]',          healthSignature.value);
+        data.append('ste_declaration[cert_agreed]',        certAgreed.value ? '1' : '0');
     }
 
     try {
@@ -186,14 +283,19 @@ const handleSubmit = async () => {
             allowEscapeKey: false,
         });
 
+        // Refresh the stored status (now pending) so the sidebar hides the
+        // application form again until another rejection occurs.
+        await authApplicantStore.getAuthApplicant();
+
         router.push({ name: 'applicant.application.status' });
 
     } catch (err) {
         Swal.close();
-        if (err.response?.status === 422) {
-            errors.value = err.response.data.errors || {};
+        if (err.response?.status === 422 && err.response.data.errors) {
+            errors.value = err.response.data.errors;
             sweetAlert('error', 'Please correct the errors in the form and try again.');
         } else {
+            errors.value = {};
             sweetAlert('error', err.response?.data?.message || 'Something went wrong.');
         }
     } finally {
@@ -236,13 +338,31 @@ const handleSubmit = async () => {
 
             <form v-else @submit.prevent="handleSubmit" enctype="multipart/form-data">
 
+                <!-- Reapplication notice (previous application was rejected) -->
+                <div v-if="applicationStatus === 'rejected'" class="alert alert-danger border-0 shadow-sm mb-4">
+                    <div class="d-flex align-items-start">
+                        <i class="bi bi-exclamation-triangle-fill fs-4 me-3 text-danger"></i>
+                        <div>
+                            <h6 class="mb-1 fw-bold text-dark">Your previous application was rejected.</h6>
+                            <p class="mb-1 small text-secondary">
+                                Please review the rejection reason, correct the missing or incorrect
+                                information below, and resubmit your application.
+                            </p>
+                            <p v-if="rejectionReason" class="mb-0 small text-secondary">
+                                <strong>Reason:</strong>
+                                <span style="white-space: pre-wrap; word-break: break-word;">{{ rejectionReason }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Program Badge -->
                 <div class="row mb-3">
                     <div class="col-lg-12">
                         <span class="badge me-2 fs-6 fw-semibold"
                             :class="isSTE ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary'">
                             <i class="bi me-1" :class="isSTE ? 'bi-mortarboard-fill' : 'bi-pc-display-horizontal'"></i>
-                            {{ program }} Program
+                            {{ selectedProgram?.initials }} Program
                         </span>
                         <router-link to="/applicant/application/select-program" class="btn btn-sm btn-outline-secondary ms-2">
                             <i class="bi bi-arrow-left me-1"></i>Change Program
@@ -425,52 +545,22 @@ const handleSubmit = async () => {
                     </div>
                     <div class="card-body">
 
-                        <!-- Grade Requirements Notice -->
-                        <div class="alert alert-warning d-flex align-items-start gap-2 mb-4">
+                        <!-- Requirement Notice -->
+                        <div v-if="requirementNotice" class="alert alert-warning d-flex align-items-start gap-2 mb-4">
                             <i class="bi bi-exclamation-triangle-fill mt-1"></i>
-                            <div class="small">
-                                <strong>SF9 Grade Requirements:</strong>
-                                At least <strong>85%</strong> in English, Science, and Mathematics;
-                                at least <strong>83%</strong> in other subjects;
-                                no grade lower than <strong>80%</strong>.
-                            </div>
+                            <div class="small">{{ requirementNotice }}</div>
                         </div>
 
                         <div class="row g-3">
 
-                            <!-- SF9 — Required for Both -->
-                            <div class="col-md-6" :class="isSPICT ? 'col-md-12' : 'col-md-6'">
-                                <label for="sf9_file" class="form-label fw-semibold">
-                                    <i class="bi bi-file-earmark-text me-1 text-primary"></i>
-                                    SF9 / Report Card <span class="text-danger">*</span>
-                                </label>
-                                <input type="file" id="sf9_file" class="form-control form-control-sm"
-                                    :class="{ 'is-invalid': errors.sf9_file }"
-                                    accept=".pdf,.jpg,.jpeg,.png"
-                                    @change="onSf9Change" required>
-                                <div class="invalid-feedback" v-if="errors.sf9_file">{{ errors.sf9_file[0] }}</div>
-                                <small class="text-muted">Current school year report card</small>
-                            </div>
+                            <div v-for="req in applicableRequirements" :key="req.id"
+                                :class="applicableRequirements.length === 1 ? 'col-md-12' : 'col-md-6'">
 
-                            <!-- STE-only documents -->
-                            <template v-if="isSTE">
-
-                                <div class="col-md-6">
-                                    <label for="good_moral_file" class="form-label fw-semibold">
-                                        <i class="bi bi-award me-1 text-success"></i>
-                                        Certificate of Good Moral Character <span class="text-danger">*</span>
-                                    </label>
-                                    <input type="file" id="good_moral_file" class="form-control form-control-sm"
-                                        :class="{ 'is-invalid': errors.good_moral_file }"
-                                        accept=".pdf,.jpg,.jpeg,.png"
-                                        @change="onGoodMoralChange" required>
-                                    <div class="invalid-feedback" v-if="errors.good_moral_file">{{ errors.good_moral_file[0] }}</div>
-                                </div>
-
-                                <div class="col-md-6">
+                                <!-- Online Health Declaration Form -->
+                                <template v-if="req.type === 'declaration'">
                                     <label class="form-label fw-semibold">
-                                        <i class="bi bi-heart-pulse me-1 text-danger"></i>
-                                        Health Declaration Form <span class="text-danger">*</span>
+                                        <i :class="requirementIcon(req)"></i>{{ req.name }}
+                                        <span v-if="req.is_required" class="text-danger">*</span>
                                     </label>
                                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 border rounded p-2"
                                         :class="{ 'border-success': declarationCompleted }">
@@ -489,16 +579,32 @@ const handleSubmit = async () => {
                                         <i class="bi bi-exclamation-circle-fill me-1"></i>
                                         Please complete the Health Declaration Form before submitting.
                                     </div>
-                                </div>
+                                </template>
 
-                            </template>
+                                <!-- Document Upload -->
+                                <template v-else>
+                                    <label :for="'requirement_' + req.id" class="form-label fw-semibold">
+                                        <i :class="requirementIcon(req)"></i>{{ req.name }}
+                                        <span v-if="req.is_required" class="text-danger">*</span>
+                                    </label>
+                                    <input type="file" :id="'requirement_' + req.id"
+                                        class="form-control form-control-sm"
+                                        :class="{ 'is-invalid': errors[errorKey(req)] }"
+                                        accept=".pdf,.jpg,.jpeg,.png"
+                                        :required="req.is_required"
+                                        @change="onFileChange(req.id, $event)">
+                                    <div class="invalid-feedback" v-if="errors[errorKey(req)]">{{ errors[errorKey(req)][0] }}</div>
+                                    <small class="text-muted" v-if="req.description">{{ req.description }}</small>
+                                </template>
+
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Submit Button -->
                 <div class="row">
-                    <div class="col-lg-12 d-flex justify-content-end gap-2">
+                    <div class="col-lg-12 d-flex flex-wrap justify-content-end gap-2">
                         <router-link to="/applicant/application/select-program"
                             class="btn btn-outline-secondary btn-sm fw-semibold">
                             <i class="bi bi-arrow-left me-1"></i>Back
@@ -519,152 +625,269 @@ const handleSubmit = async () => {
 
             </form>
 
-            <!-- ─── Online STE Declaration Modal ─── -->
-            <div class="modal fade" id="ste-declaration-modal" data-bs-backdrop="static" data-bs-keyboard="false">
+            <!-- ─── Health Declaration Modal ─── -->
+            <div class="modal fade" id="ste-declaration-modal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-scrollable">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title fw-bold">
-                                <i class="bi bi-file-earmark-check me-2 text-warning"></i>STE Program — Applicant Declaration Form
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <div class="modal-content hd-modal">
+
+                        <!-- Government / School Header -->
+                        <div class="modal-header hd-header border-0 pb-0">
+                            <img class="hd-header__logo" src="/images/cnhs_logo.png" alt="Carranglan National High School Logo">
+                            <div class="hd-header__text">
+                                <div class="hd-header__gov">Republic of the Philippines</div>
+                                <div class="hd-header__gov">Department of Education</div>
+                                <div class="hd-header__region">REGION III &ndash; CENTRAL LUZON</div>
+                                <h5 class="hd-header__title mb-0">HEALTH DECLARATION FORM</h5>
+                                <p class="hd-header__subtitle mb-0">Special Curricular Program in Science &mdash; Carranglan National High School</p>
+                            </div>
+                            <img class="hd-header__logo hd-header__logo--deped" src="/images/deped.webp" alt="DepEd Logo">
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <div class="modal-body declaration-body">
+                        <div class="hd-divider"></div>
 
-                            <!-- School Header -->
-                            <div class="declaration-header text-center border-bottom pb-3 mb-3">
-                                <div class="text-uppercase fw-bold">Republic of the Philippines</div>
-                                <div class="text-uppercase fw-bold">Department of Education</div>
-                                <div class="text-uppercase fw-bold mt-1">Carranglan National High School</div>
-                                <div class="mt-1">Carranglan, Nueva Ecija</div>
-                                <div class="text-uppercase fw-bold mt-2" style="letter-spacing: 1px;">STE Program — Applicant Declaration Form</div>
-                            </div>
+                        <div class="modal-body hd-body">
 
-                            <!-- Section I -->
-                            <div class="declaration-section-title">I. Grade Requirements</div>
-                            <p>
-                                I hereby acknowledge that I am aware of and meet the following minimum grade requirements for admission into the
-                                <strong>Science and Technology Education (STE) Program</strong> of Carranglan National High School:
-                            </p>
-                            <ul>
-                                <li>At least <strong>85%</strong> in English, Science, and Mathematics for the current school year.</li>
-                                <li>At least <strong>83%</strong> in all other learning areas.</li>
-                                <li>No grade lower than <strong>80%</strong> in any subject.</li>
-                            </ul>
+                            <!-- ── Section 1: Learner Information ── -->
+                            <section class="hd-section">
+                                <div class="hd-section__header">
+                                    <span class="hd-section__num">1</span>
+                                    <span class="hd-section__title">Learner Information</span>
+                                </div>
+                                <div class="hd-section__body">
+                                    <label class="hd-label" for="hd-learner-name">Name of Learner <span class="text-danger">*</span></label>
+                                    <input type="text" id="hd-learner-name" class="form-control hd-input"
+                                        :value="(form.firstname + ' ' + form.middlename + ' ' + form.lastname).trim()"
+                                        readonly>
+                                    <small class="hd-help">Auto-filled from your personal information above.</small>
+                                </div>
+                            </section>
 
-                            <!-- Section II -->
-                            <div class="declaration-section-title">II. Declaration</div>
-                            <p>I, the undersigned applicant, solemnly declare and affirm the following:</p>
-                            <div v-for="(statement, index) in declarationStatements" :key="index" class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox"
-                                    :id="'ste-decl-agree-' + index"
-                                    v-model="declarationAgreements[index]">
-                                <label class="form-check-label" :for="'ste-decl-agree-' + index">
-                                    {{ statement }}
-                                </label>
-                            </div>
-
-                            <!-- Section III -->
-                            <div class="declaration-section-title">III. Applicant Information</div>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="decl-full-name" class="form-label fw-semibold">Full Name</label>
-                                    <input type="text" id="decl-full-name" class="form-control form-control-sm"
-                                        :value="registeredName" readonly>
-                                    <small class="text-muted">From your registered account</small>
+                            <!-- ── Section 2: Health Declaration ── -->
+                            <section class="hd-section">
+                                <div class="hd-section__header">
+                                    <span class="hd-section__num">2</span>
+                                    <span class="hd-section__title">Health Declaration</span>
                                 </div>
-                                <div class="col-md-3">
-                                    <label for="decl-dob" class="form-label fw-semibold">Date of Birth <span class="text-danger">*</span></label>
-                                    <input type="date" id="decl-dob" class="form-control form-control-sm"
-                                        v-model="form.date_of_birth" required>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="decl-sex" class="form-label fw-semibold">Sex <span class="text-danger">*</span></label>
-                                    <select id="decl-sex" class="form-select form-select-sm" v-model="form.sex" required>
-                                        <option value="">Select</option>
-                                        <option value="Male">Male</option>
-                                        <option value="Female">Female</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="row g-3 mt-1">
-                                <div class="col-md-12">
-                                    <label for="decl-address" class="form-label fw-semibold">Complete Address <span class="text-danger">*</span></label>
-                                    <input type="text" id="decl-address" class="form-control form-control-sm"
-                                        v-model="form.complete_address" placeholder="House No., Street, Barangay, Municipality, Province" required>
-                                </div>
-                            </div>
-                            <div class="row g-3 mt-1">
-                                <div class="col-md-6">
-                                    <label for="decl-guardian" class="form-label fw-semibold">Name of Parent / Guardian <span class="text-danger">*</span></label>
-                                    <input type="text" id="decl-guardian" class="form-control form-control-sm"
-                                        v-model="form.parent_guardian_name" placeholder="Full name" required>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="decl-contact" class="form-label fw-semibold">Contact Number <span class="text-danger">*</span></label>
-                                    <input type="text" id="decl-contact" class="form-control form-control-sm"
-                                        v-model="form.contact_number" placeholder="09XXXXXXXXX" required>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="decl-email" class="form-label fw-semibold">Email</label>
-                                    <input type="email" id="decl-email" class="form-control form-control-sm"
-                                        :value="authApplicantStore.applicant.email" readonly>
-                                    <small class="text-muted">From your registered account</small>
-                                </div>
-                            </div>
-                            <div class="row g-3 mt-1">
-                                <div class="col-md-12">
-                                    <label for="decl-elem" class="form-label fw-semibold">Elementary School Graduated From <span class="text-danger">*</span></label>
-                                    <input type="text" id="decl-elem" class="form-control form-control-sm"
-                                        v-model="form.elementary_school"
-                                        placeholder="e.g. San Jose Elementary School" required>
-                                </div>
-                            </div>
-
-                            <!-- Digital Acknowledgment -->
-                            <div class="declaration-section-title mt-3">Digital Acknowledgment</div>
-                            <p class="mb-2">
-                                By typing your full name below, you acknowledge that you have read, understood, and agreed to the declaration above.
-                            </p>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="ste-decl-applicant-name" class="form-label fw-semibold">
-                                        Signature of Applicant (Type Full Name) <span class="text-danger">*</span>
+                                <div class="hd-section__body">
+                                    <div class="hd-statement">
+                                        I hereby declare that my son/daughter is in good health and physically fit to participate in the rigorous academic activities of the Special Curricular Program in Science.
+                                    </div>
+                                    <label class="hd-agree" :class="{ 'hd-agree--checked': healthAgreed }" for="hd-health-agreed">
+                                        <input class="hd-agree__input" type="checkbox" id="hd-health-agreed" v-model="healthAgreed">
+                                        <span class="hd-agree__box"><i class="bi bi-check-lg"></i></span>
+                                        <span class="hd-agree__text">I agree and confirm the health declaration above. <span class="text-danger">*</span></span>
                                     </label>
-                                    <input type="text" id="ste-decl-applicant-name" class="form-control form-control-sm"
-                                        :class="{ 'is-invalid': nameMismatch }"
-                                        v-model="declaration.acknowledged_name"
-                                        placeholder="Type your full name" required>
-                                    <div class="invalid-feedback">{{ nameMismatch }}</div>
-                                    <small class="text-muted">Must match your registered name.</small>
+                                    <div v-if="!healthAgreed && healthConditions.length > 0" class="hd-error">
+                                        <i class="bi bi-exclamation-circle-fill me-1"></i>
+                                        You must agree to the health declaration to proceed.
+                                    </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <label for="ste-decl-guardian-name" class="form-label fw-semibold">
-                                        Signature of Parent / Guardian (Type Full Name) <span class="text-danger">*</span>
+                            </section>
+
+                            <!-- ── Section 3: Health / Physiological Concerns ── -->
+                            <section class="hd-section">
+                                <div class="hd-section__header">
+                                    <span class="hd-section__num">3</span>
+                                    <span class="hd-section__title">Health / Physiological Concerns</span>
+                                </div>
+                                <div class="hd-section__body">
+                                    <p class="hd-help hd-help--block">
+                                        Please check all condition/s that apply to your son/daughter and should be taken into consideration.
+                                    </p>
+                                    <div class="hd-conditions">
+                                        <label v-for="condition in HEALTH_CONDITIONS" :key="condition" class="hd-condition-item"
+                                            :class="{
+                                                'hd-condition-item--checked': isChecked(condition),
+                                                'hd-condition-item--none':    condition === 'None',
+                                            }"
+                                            @click.prevent="toggleCondition(condition)">
+                                            <input type="checkbox" class="d-none" :checked="isChecked(condition)" tabindex="-1">
+                                            <span class="hd-condition-check">
+                                                <i v-if="isChecked(condition)" class="bi bi-check-square-fill"></i>
+                                                <i v-else class="bi bi-square"></i>
+                                            </span>
+                                            <span class="hd-condition-text">{{ condition }}</span>
+                                        </label>
+                                    </div>
+                                    <!-- Others specify -->
+                                    <div v-if="showOthersText" class="mt-3">
+                                        <label class="hd-label" for="hd-others-text">Please specify other condition/s <span class="text-danger">*</span></label>
+                                        <input type="text" id="hd-others-text" class="form-control hd-input"
+                                            v-model="othersText"
+                                            placeholder="e.g. Diabetes, Epilepsy...">
+                                        <div v-if="showOthersText && !othersText.trim()" class="hd-error mt-1">
+                                            <i class="bi bi-exclamation-circle-fill me-1"></i>
+                                            Please specify the other condition/s.
+                                        </div>
+                                    </div>
+                                    <div v-if="healthAgreed && healthConditions.length === 0" class="hd-error mt-2">
+                                        <i class="bi bi-exclamation-circle-fill me-1"></i>
+                                        Please select at least one condition, or select "None".
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- ── Section 4: Certification and Authorization ── -->
+                            <section class="hd-section">
+                                <div class="hd-section__header">
+                                    <span class="hd-section__num">4</span>
+                                    <span class="hd-section__title">Certification and Authorization</span>
+                                </div>
+                                <div class="hd-section__body">
+                                    <div class="hd-statement hd-statement--cert">
+                                        I hereby certify that the information provided above is true and correct to the best of my knowledge. I also authorize the Department of Education to use my child's details in relation to issuances concerning applications for Special Curricular Programs. All information provided will be treated with strict confidentiality in accordance with the Data Privacy Act of 2012.
+                                    </div>
+                                    <label class="hd-agree" :class="{ 'hd-agree--checked': certAgreed }" for="hd-cert-agreed">
+                                        <input class="hd-agree__input" type="checkbox" id="hd-cert-agreed" v-model="certAgreed">
+                                        <span class="hd-agree__box"><i class="bi bi-check-lg"></i></span>
+                                        <span class="hd-agree__text">I agree and confirm the health declaration. <span class="text-danger">*</span></span>
                                     </label>
-                                    <input type="text" id="ste-decl-guardian-name" class="form-control form-control-sm"
-                                        :class="{ 'is-invalid': parentNameMismatch }"
-                                        v-model="declaration.parent_guardian_name"
-                                        placeholder="Type the full name of your parent / guardian" required>
-                                    <div class="invalid-feedback">{{ parentNameMismatch }}</div>
-                                    <small class="text-muted">Must match the parent / guardian name entered in the form.</small>
                                 </div>
-                            </div>
-                            <div class="form-check mt-3">
-                                <input class="form-check-input" type="checkbox" id="ste-decl-parent-agreement"
-                                    v-model="declaration.parent_agreement">
-                                <label class="form-check-label" for="ste-decl-parent-agreement">
-                                    I, the parent / guardian named above, acknowledge and give consent to this application and its declaration.
-                                </label>
+                            </section>
+
+                            <!-- ── Section 5: Parent / Legal Guardian Information ── -->
+                            <section class="hd-section">
+                                <div class="hd-section__header">
+                                    <span class="hd-section__num">5</span>
+                                    <span class="hd-section__title">Parent / Legal Guardian Information</span>
+                                </div>
+                                <div class="hd-section__body">
+                                    <div class="row g-3">
+                                        <div class="col-md-8">
+                                            <label class="hd-label" for="hd-guardian-name">Parent / Legal Guardian Name <span class="text-danger">*</span></label>
+                                            <input type="text" id="hd-guardian-name" class="form-control hd-input"
+                                                v-model="healthGuardianName"
+                                                :class="{ 'is-invalid': healthAgreed && !healthGuardianName.trim() }"
+                                                placeholder="Full name of parent or guardian">
+                                            <div class="invalid-feedback">Guardian name is required.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- ── Section 6: Signature and Date ── -->
+                            <section class="hd-section">
+                                <div class="hd-section__header">
+                                    <span class="hd-section__num">6</span>
+                                    <span class="hd-section__title">Signature and Date</span>
+                                </div>
+                                <div class="hd-section__body">
+                                    <div class="row g-3">
+                                        <div class="col-md-7">
+                                            <label class="hd-label">
+                                                Parent/Guardian Signature
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="hd-signature">
+                                                <img v-if="healthSignature" :src="healthSignature"
+                                                    class="hd-signature__preview" alt="Drawn signature">
+                                                <span v-else class="hd-signature__empty">
+                                                    <i class="bi bi-pen me-1"></i>No signature yet.
+                                                </span>
+                                            </div>
+                                            <div class="d-flex gap-2 mt-2 flex-wrap">
+                                                <button type="button" class="btn btn-warning btn-sm fw-semibold"
+                                                    @click="openSignaturePad">
+                                                    <i class="bi bi-pencil-square me-1"></i>
+                                                    {{ healthSignature ? 'Redraw Signature' : 'Sign Here' }}
+                                                </button>
+                                                <button v-if="healthSignature" type="button"
+                                                    class="btn btn-outline-secondary btn-sm"
+                                                    @click="removeSignature">
+                                                    <i class="bi bi-eraser me-1"></i>Clear
+                                                </button>
+                                            </div>
+                                            <small class="hd-help">Draw your signature; a mouse, finger, or stylus all work.</small>
+                                            <div v-if="healthAgreed && !healthSignature" class="hd-error mt-1">
+                                                <i class="bi bi-exclamation-circle-fill me-1"></i>
+                                                Please draw your signature.
+                                            </div>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="hd-label" for="hd-date-signed">Date Signed <span class="text-danger">*</span></label>
+                                            <input type="date" id="hd-date-signed" class="form-control hd-input"
+                                                v-model="healthDateSigned"
+                                                :max="today"
+                                                :class="{ 'is-invalid': healthAgreed && !healthDateSigned }">
+                                            <div class="invalid-feedback">Date signed is required.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- Validation summary -->
+                            <div v-if="!canSaveDeclaration && healthAgreed" class="hd-alert">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                Please complete all required fields before saving.
                             </div>
 
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-warning btn-sm fw-semibold"
+
+                        <!-- Footer: School / Government Office Contact -->
+                        <div class="hd-footer">
+                            <div class="hd-footer__contact">
+                                <div class="hd-footer__item">
+                                    <i class="bi bi-geo-alt-fill"></i>
+                                    <span>Quezon Street, F.C. Otic Poblacion (Brgy. II), Carranglan, Nueva Ecija</span>
+                                </div>
+                                <div class="hd-footer__item">
+                                    <i class="bi bi-telephone-fill"></i>
+                                    <span>(+63) 44-291-2340</span>
+                                </div>
+                                <div class="hd-footer__item">
+                                    <i class="bi bi-envelope-fill"></i>
+                                    <span>cnhs.edu.ph@gmail.com</span>
+                                </div>
+                                <div class="hd-footer__item">
+                                    <i class="bi bi-globe"></i>
+                                    <span>www.deped.gov.ph</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer hd-actions">
+                            <button type="button" class="btn btn-secondary btn-sm fw-semibold" data-bs-dismiss="modal">
+                                <i class="bi bi-x-circle-fill me-1"></i>Close
+                            </button>
+                            <button type="button" class="btn hd-btn-primary btn-sm fw-semibold"
                                 :disabled="!canSaveDeclaration"
                                 @click="saveDeclaration">
-                                <i class="bi bi-check-lg me-1"></i>Save Declaration
+                                <i class="bi bi-check-circle-fill me-1"></i>Submit Health Declaration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── Signature Pad Modal (nested over the declaration modal) ─── -->
+            <div class="modal fade" id="hd-signature-modal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header border-0 pb-0">
+                            <h6 class="modal-title fw-semibold">
+                                <i class="bi bi-pen me-2"></i>Draw Your Signature
+                            </h6>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <SignaturePad ref="signaturePadRef" />
+                            <div v-if="padError" class="hd-error mt-2">
+                                <i class="bi bi-exclamation-circle-fill me-1"></i>
+                                Please draw your signature before confirming.
+                            </div>
+                        </div>
+                        <div class="modal-footer border-0">
+                            <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold"
+                                @click="clearSignature">
+                                <i class="bi bi-eraser me-1"></i>Clear
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm fw-semibold"
+                                data-bs-dismiss="modal">
+                                Cancel
+                            </button>
+                            <button type="button" class="btn btn-warning btn-sm fw-semibold"
+                                @click="applySignature">
+                                <i class="bi bi-check-lg me-1"></i>Use This Signature
                             </button>
                         </div>
                     </div>
@@ -675,20 +898,381 @@ const handleSubmit = async () => {
 </template>
 
 <style scoped>
-.declaration-body {
-    font-family: 'Times New Roman', Times, serif;
+/* ── Palette ─────────────────────────────────────────────────────── */
+/* maroon #8B0000 · white #fff · light #f7f7f7 · light-maroon #fdf5f5 */
+
+/* ── Modal shell ─────────────────────────────────────────────────── */
+.hd-modal {
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .18);
+    background: #fff;
+}
+
+/* ── Government header ───────────────────────────────────────────── */
+.hd-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: #fff;
+    padding: 20px 24px 14px;
+}
+.hd-header__text { text-align: center; flex: 1; min-width: 0; }
+.hd-header__logo {
+    width: 76px;
+    height: 76px;
+    flex-shrink: 0;
+    object-fit: contain;
+}
+.hd-header__logo--deped {
+    width: auto;
+    height: 62px;
+}
+.hd-header .btn-close { margin: 0; flex-shrink: 0; }
+.hd-header__gov {
+    font-size: 12px;
+    letter-spacing: .04em;
+    color: #444;
+    text-transform: uppercase;
+}
+.hd-header__region {
     font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: #8B0000;
+    margin-top: 6px;
+}
+.hd-header__title {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    color: #1a1a1a;
+    margin-top: 6px;
+}
+.hd-header__subtitle {
+    font-size: 12.5px;
+    color: #555;
+    margin-top: 4px;
+}
+.hd-divider {
+    height: 4px;
+    background: #8B0000;
+    margin: 0 24px;
+    border-radius: 2px;
+}
+
+/* ── Modal body ──────────────────────────────────────────────────── */
+.hd-body {
+    font-size: 13.5px;
+    line-height: 1.6;
+    padding: 20px 24px;
+    background: #f7f7f7;
+}
+
+/* ── Section cards (Google-Forms style) ──────────────────────────── */
+.hd-section {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-left: 4px solid #8B0000;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+    padding: 18px 20px;
+    margin-bottom: 16px;
+}
+.hd-section:last-of-type { margin-bottom: 0; }
+
+.hd-section__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.hd-section__num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #8B0000;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.hd-section__title {
+    font-weight: 700;
+    font-size: 14.5px;
+    color: #1a1a1a;
+    letter-spacing: .02em;
+}
+.hd-section__body { padding-left: 36px; }
+
+/* ── Inputs ──────────────────────────────────────────────────────── */
+.hd-label {
+    display: block;
+    font-weight: 600;
+    font-size: 12.5px;
+    margin-bottom: 4px;
+    color: #333;
+}
+.hd-input {
+    font-size: 13.5px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 8px 12px;
+    background: #fff;
+}
+.hd-input:focus {
+    border-color: #8B0000;
+    box-shadow: 0 0 0 .18rem rgba(139, 0, 0, .12);
+}
+.hd-input[readonly] {
+    background: #f7f7f7;
+    color: #333;
+}
+.hd-help {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+.hd-help--block { margin-bottom: 10px; }
+
+/* ── Statement blocks ────────────────────────────────────────────── */
+.hd-statement {
+    background: #f7f7f7;
+    border-left: 4px solid #8B0000;
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    font-style: italic;
+    color: #444;
     line-height: 1.7;
 }
-.declaration-header {
-    color: #000;
+.hd-statement--cert {
+    background: #fdf5f5;
+    border-left-color: #8B0000;
+    color: #333;
+    font-style: normal;
+    border: 1px solid #f0dcdc;
+    border-left: 4px solid #8B0000;
+    border-radius: 0 6px 6px 0;
 }
-.declaration-section-title {
-    font-weight: bold;
-    font-size: 13px;
-    margin: 14px 0 8px 0;
-    text-transform: uppercase;
-    border-bottom: 1px solid #000;
-    padding-bottom: 4px;
+
+/* ── Agree checkbox ──────────────────────────────────────────────── */
+.hd-agree {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 10px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    user-select: none;
+}
+.hd-agree:hover { border-color: #8B0000; background: #fdf5f5; }
+.hd-agree--checked { border-color: #8B0000; background: #fdf5f5; }
+.hd-agree__input { position: absolute; opacity: 0; pointer-events: none; }
+.hd-agree__box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: 2px solid #999;
+    border-radius: 4px;
+    background: #fff;
+    color: transparent;
+    font-size: 15px;
+    flex-shrink: 0;
+    transition: all .15s;
+}
+.hd-agree--checked .hd-agree__box {
+    background: #8B0000;
+    border-color: #8B0000;
+    color: #fff;
+}
+.hd-agree__text { font-size: 13.5px; color: #333; }
+
+/* ── Conditions grid ─────────────────────────────────────────────── */
+.hd-conditions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+.hd-condition-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    padding: 10px 14px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+    user-select: none;
+    font-size: 13.5px;
+    color: #333;
+}
+.hd-condition-item:hover {
+    border-color: #8B0000;
+    background: #fdf5f5;
+}
+.hd-condition-item--checked {
+    border-color: #8B0000;
+    background: #fdf5f5;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+.hd-condition-item--none.hd-condition-item--checked {
+    border-color: #198754;
+    background: #f0fdf4;
+    color: #146c43;
+}
+.hd-condition-check { flex-shrink: 0; font-size: 18px; color: #999; }
+.hd-condition-item--checked .hd-condition-check { color: #8B0000; }
+.hd-condition-item--none.hd-condition-item--checked .hd-condition-check { color: #198754; }
+
+/* ── Signature ────────────────────────────────────────────────────── */
+.hd-signature {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 76px;
+    padding: 6px;
+    background: #fbfbff;
+    border: 1.5px solid #e5e5e5;
+    border-bottom: 2px solid #8B0000;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.hd-signature__preview {
+    max-width: 100%;
+    height: 58px;
+    object-fit: contain;
+}
+.hd-signature__empty {
+    font-size: 12.5px;
+    font-style: italic;
+    color: #999;
+}
+
+/* ── Errors / alerts ─────────────────────────────────────────────── */
+.hd-error {
+    font-size: 12px;
+    color: #dc3545;
+}
+.hd-alert {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    color: #8a6d00;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    margin-top: 16px;
+}
+
+/* ── Footer: contact + logos ─────────────────────────────────────── */
+.hd-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: #fff;
+    border-top: 1px solid #e5e5e5;
+    padding: 14px 24px;
+}
+.hd-footer__contact {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 18px;
+    width: 100%;
+    font-size: 11.5px;
+    color: #555;
+}
+.hd-footer__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+.hd-footer__item i { color: #8B0000; margin-top: 2px; }
+
+/* ── Actions ─────────────────────────────────────────────────────── */
+.hd-actions {
+    background: #fff;
+    border-top: 1px solid #e5e5e5;
+    padding: 12px 24px;
+}
+.hd-btn-primary {
+    background: #8B0000;
+    border-color: #8B0000;
+    color: #fff;
+}
+.hd-btn-primary:hover,
+.hd-btn-primary:focus {
+    background: #6d0000;
+    border-color: #6d0000;
+    color: #fff;
+}
+.hd-btn-primary:disabled {
+    background: #c9a3a3;
+    border-color: #c9a3a3;
+    color: #fff;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+@media (max-width: 767.98px) {
+    .hd-conditions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hd-footer__contact { grid-template-columns: 1fr; }
+    .hd-header { gap: 10px; }
+    .hd-header__logo { width: 64px; height: 64px; }
+    .hd-header__logo--deped { width: auto; height: 54px; }
+}
+@media (max-width: 575.98px) {
+    .hd-header { padding: 16px 16px 12px; gap: 8px; }
+    .hd-header__logo { width: 54px; height: 54px; }
+    .hd-header__logo--deped { width: auto; height: 44px; }
+    .hd-header__gov { font-size: 11px; }
+    .hd-header__region { font-size: 12px; }
+    .hd-header__title { font-size: 18px; }
+    .hd-divider { margin: 0 16px; }
+    .hd-body { padding: 16px; }
+    .hd-section { padding: 14px 16px; }
+    .hd-section__body { padding-left: 0; }
+    .hd-conditions { grid-template-columns: 1fr; }
+    .hd-footer { padding: 12px 16px; }
+    .hd-actions { padding: 10px 16px; }
+}
+
+/* ── Print (A4) ──────────────────────────────────────────────────── */
+@media print {
+    @page { size: A4; margin: 12mm; }
+    .hd-modal {
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+    }
+    .hd-header { padding: 0 0 10px; }
+    .hd-header__logo,
+    .hd-header__logo--deped {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .hd-body { background: #fff; padding: 12px 0; }
+    .hd-section {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+    .hd-actions,
+    .btn-close { display: none !important; }
+    .hd-footer { border-top: 1px solid #ddd; padding: 10px 0; }
 }
 </style>

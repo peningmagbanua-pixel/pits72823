@@ -48,14 +48,7 @@ const techStack = ref({
             description: "Relational database management system",
         },
     ],
-    tools: [
-        {
-            name: "ngrok",
-            icon: "bi-arrow-left-right",
-            color: "#1DA1F2",
-            description: "Secure tunneling for local development",
-        },
-    ],
+    tools: [],
 });
 </script>
 
@@ -187,7 +180,7 @@ const techStack = ref({
                 </div>
             </div>
 
-            <div class="row mb-4">
+            <div v-if="techStack.tools.length" class="row mb-4">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-body border-bottom">

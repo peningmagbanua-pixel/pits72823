@@ -230,7 +230,7 @@ onMounted(() => {
                                             <th class="text-center align-middle">Programs</th>
                                             <th class="text-center align-middle">Last Login</th>
                                             <th class="text-center align-middle">Status</th>
-                                            <th class="text-center align-middle">Action/s</th>
+                                            <th class="text-center align-middle actions-cell">Action/s</th>
                                         </tr>
                                     </thead>
                                     <tbody v-if="loading">
@@ -272,7 +272,7 @@ onMounted(() => {
                                             <td class="text-center align-middle">
                                                 <span class="badge" :class="user.status_color">{{ user.status_text }}</span>
                                             </td>
-                                            <td class="text-center align-middle">
+                                            <td class="text-center align-middle actions-cell">
                                                 <template v-if="showDeleted">
                                                     <button v-if="permissions.delete" type="button" class="btn btn-success btn-sm"
                                                         @click="restoreUser(user.id)">

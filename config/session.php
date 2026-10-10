@@ -38,6 +38,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Inactivity Timeout Warning
+    |--------------------------------------------------------------------------
+    |
+    | These values control the client-side session timeout warning shown to
+    | the user after the configured minutes of inactivity. The warning is
+    | displayed for the given minutes before the session is logged out.
+    |
+    */
+
+    'timeout_minutes' => (int) env('SESSION_TIMEOUT_MINUTES', 15),
+
+    'warning_minutes' => (int) env('SESSION_WARNING_MINUTES', 2),
+
+    /*
+    |--------------------------------------------------------------------------
     | Session Encryption
     |--------------------------------------------------------------------------
     |

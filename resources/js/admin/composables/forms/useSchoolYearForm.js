@@ -9,7 +9,6 @@ export default function useSchoolYearForm() {
         status: null,
         application_start: '',
         application_deadline: '',
-        exam_date: '',
         guidelines: '',
     });
 
@@ -20,7 +19,6 @@ export default function useSchoolYearForm() {
         form.status = null;
         form.application_start = '';
         form.application_deadline = '';
-        form.exam_date = '';
         form.guidelines = '';
     };
 
@@ -31,7 +29,6 @@ export default function useSchoolYearForm() {
         form.status = school_year.is_active;
         form.application_start = school_year.application_start || '';
         form.application_deadline = school_year.application_deadline || '';
-        form.exam_date = school_year.exam_date || '';
         form.guidelines = school_year.guidelines || '';
     };
 

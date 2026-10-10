@@ -1,4 +1,12 @@
 <!DOCTYPE html>
+<?php
+    $settingsPath = storage_path('app/landing_settings.json');
+    $ls = file_exists($settingsPath) ? (json_decode(file_get_contents($settingsPath), true) ?? []) : [];
+    $schoolName     = $ls['school_name']     ?? 'CNHS Online Application';
+    $contactEmail   = $ls['contact_email']   ?? 'cnhs.edu.ph@gmail.com';
+    $contactPhone   = $ls['contact_phone']   ?? '(+63) 44-291-2340';
+    $contactAddress = $ls['contact_address'] ?? 'Quezon Street, F.C. Otic Poblacion (Brgy. II), Carranglan, Nueva Ecija';
+?>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
@@ -7,14 +15,15 @@
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
         .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .header { background-color: #b8860b; padding: 30px 40px; text-align: center; }
+        .header { background-color: #8B0000; padding: 30px 40px; text-align: center; }
         .header h1 { color: #ffffff; margin: 0; font-size: 22px; }
         .header p { color: rgba(255,255,255,0.85); margin: 6px 0 0; font-size: 14px; }
         .body { padding: 30px 40px; color: #333333; }
         .body p { line-height: 1.7; margin-bottom: 14px; }
-        .status-box { background: #fffef5; border: 1px solid #e6ddb3; border-left: 4px solid #b8860b; border-radius: 8px; padding: 18px 24px; margin: 20px 0; }
-        .status-box h4 { color: #b8860b; margin: 0 0 8px; font-size: 16px; }
-        .status-box p { margin: 0; font-size: 14px; color: #555; }
+        .status-box { background: #f9f9f9; border: 1px solid #e9ecef; border-left: 4px solid #8B0000; border-radius: 8px; padding: 18px 24px; margin: 20px 0; }
+        .status-box .status-label { font-size: 12px; color: #777; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em; }
+        .status-box .status-value { font-size: 18px; font-weight: bold; color: #333333; margin-top: 6px; }
+        .status-box .status-note { margin: 8px 0 0; font-size: 14px; color: #555555; line-height: 1.6; }
         .next-steps { background: #f8f9fa; border-radius: 8px; padding: 18px 24px; margin: 20px 0; }
         .next-steps h5 { color: #333; margin: 0 0 10px; font-size: 14px; font-weight: bold; }
         .next-steps li { font-size: 13px; color: #555; margin-bottom: 6px; line-height: 1.6; }
@@ -33,13 +42,14 @@
 
             <p>
                 Thank you for your patience regarding your application for the
-                <strong>{{ $applicant->program }}</strong> program at
+                <strong>{{ $applicant->program?->initials }}</strong> program at
                 <strong>Carranglan National High School (CNHS)</strong>.
             </p>
 
             <div class="status-box">
-                <h4>Status Reset to Pending</h4>
-                <p>
+                <div class="status-label">Your Application Status</div>
+                <div class="status-value">Pending</div>
+                <p class="status-note">
                     Your application status has been reset to <strong>pending</strong>.
                     Please wait for further updates from the admissions team.
                 </p>
@@ -62,8 +72,8 @@
 
             <p>
                 If you have any questions, please contact us at
-                <a href="mailto:cnhs.edu.ph@gmail.com">cnhs.edu.ph@gmail.com</a> or call
-                <strong>(+63) 44-291-2340</strong>.
+                <a href="mailto:{{ $contactEmail }}">{{ $contactEmail }}</a> or call
+                <strong>{{ $contactPhone }}</strong>.
             </p>
 
             <p>We appreciate your understanding.</p>
@@ -72,8 +82,8 @@
             <p class="info-text">This is an automated notification. Please do not reply directly to this email.</p>
         </div>
         <div class="footer">
-            &copy; {{ date('Y') }} Carranglan National High School. All rights reserved.<br>
-            Brgy. Bayucan, Carranglan, Nueva Ecija, Philippines 3105
+            &copy; {{ date('Y') }} {{ $schoolName }}. All rights reserved.<br>
+            {{ $contactAddress }}
         </div>
     </div>
 </body>

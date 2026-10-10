@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 import { useRouter } from "vue-router";
 
@@ -10,6 +10,29 @@ const applicationData = ref({
     schedule: null,
 });
 const loading = ref(true);
+
+const periodStatus = computed(() => applicationData.value.application_period?.status || "open");
+
+const periodMessage = computed(() => {
+    const period = applicationData.value.application_period;
+    if (!period) return "";
+    if (period.status === "not_open") {
+        return "The online application is not yet open. It opens on " + formatDate(period.application_start) + ".";
+    }
+    return "The online application period has ended. Applications are no longer accepted.";
+});
+
+// "2026-06-01" -> "June 1, 2026"
+const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    const [year, month, day] = String(dateStr).slice(0, 10).split("-").map(Number);
+    if (!year || !month || !day) return dateStr;
+    return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+};
 
 const fetchApplicationData = async () => {
     try {
@@ -83,7 +106,7 @@ onMounted(() => {
                         </div>
                         <div class="card-body">
                             <!-- Prompt to fill application form if no program -->
-                            <div v-if="!applicationData.applicant?.program" class="alert alert-warning border-0 shadow-sm mb-4">
+                            <div v-if="!applicationData.applicant?.program && periodStatus === 'open'" class="alert alert-warning border-0 shadow-sm mb-4">
                                 <div class="d-flex align-items-start">
                                     <i class="bi bi-exclamation-triangle-fill fs-4 me-3 text-warning"></i>
                                     <div>
@@ -94,6 +117,46 @@ onMounted(() => {
                                         <router-link to="/applicant/application/select-program" class="btn btn-warning btn-sm fw-semibold mt-1">
                                             <i class="bi bi-pencil-square me-1"></i>Start Application Form
                                         </router-link>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Application period not yet open or already closed -->
+                            <div v-else-if="!applicationData.applicant?.program"
+                                class="border-0 shadow-sm mb-4 alert"
+                                :class="periodStatus === 'not_open' ? 'alert-info' : 'alert-secondary'">
+                                <div class="d-flex align-items-start">
+                                    <i class="fs-4 me-3"
+                                        :class="periodStatus === 'not_open' ? 'bi bi-clock-history text-info' : 'bi bi-calendar-x text-secondary'"></i>
+                                    <div>
+                                        <h6 class="mb-1 fw-bold text-dark">
+                                            {{ periodStatus === 'not_open' ? 'Application Not Yet Open' : 'Application Period Closed' }}
+                                        </h6>
+                                        <p class="mb-0 small text-secondary">
+                                            {{ periodMessage }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Rejected: correct and resubmit the application form -->
+                            <div v-else-if="applicationData.applicant?.application_status === 'rejected'"
+                                class="alert alert-danger border-0 shadow-sm mb-4">
+                                <div class="d-flex align-items-start">
+                                    <i class="bi bi-x-octagon-fill fs-4 me-3 text-danger"></i>
+                                    <div>
+                                        <h6 class="mb-1 fw-bold text-dark">Your application was rejected.</h6>
+                                        <p class="mb-2 small text-secondary">
+                                            Please review the rejection reason on the
+                                            <router-link to="/applicant/application/status" class="link-danger fw-semibold">Application Status</router-link>
+                                            page, correct the missing or incorrect information, and resubmit your application.
+                                        </p>
+                                        <router-link v-if="periodStatus === 'open'"
+                                            to="/applicant/application/select-program"
+                                            class="btn btn-danger btn-sm fw-semibold mt-1">
+                                            <i class="bi bi-pencil-square me-1"></i>Correct &amp; Resubmit
+                                        </router-link>
+                                        <p v-else class="mb-0 small text-secondary">{{ periodMessage }}</p>
                                     </div>
                                 </div>
                             </div>

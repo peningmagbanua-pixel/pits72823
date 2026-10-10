@@ -220,7 +220,7 @@ onMounted(() => {
                                                 </a>
                                             </th>
                                             <th class="text-center align-middle">Role Name</th>
-                                            <th class="text-center align-middle">Action/s</th>
+                                            <th class="text-center align-middle actions-cell">Action/s</th>
                                         </tr>
                                     </thead>
                                     <tbody v-if="loading">
@@ -236,7 +236,7 @@ onMounted(() => {
                                             <td class="text-center align-middle">{{ index + 1 }}</td>
                                             <td class="text-center align-middle">{{ role.created_at }}</td>
                                             <td class="align-middle">{{ role.name }}</td>
-                                            <td class="text-center align-middle">
+                                            <td class="text-center align-middle actions-cell">
                                                 <template v-if="showDeleted">
                                                     <button v-if="permissions.delete" type="button" class="btn btn-success btn-sm"
                                                         @click="restoreRole(role.id)">

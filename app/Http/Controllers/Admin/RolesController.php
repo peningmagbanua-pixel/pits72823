@@ -31,6 +31,7 @@ class RolesController extends Controller
         }
 
         $roles = Role::search(trim($search))
+            ->when(request('deleted') == '1', fn ($query) => $query->onlyTrashed())
             ->orderBy($sort_field, $sort_order)
             ->paginate($paginate);
 
@@ -39,6 +40,12 @@ class RolesController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->filled('name') && Role::onlyTrashed()->where('name', $request->name)->exists()) {
+            return response()->json([
+                'message' => 'A deleted role with this name exists. Restore it instead.',
+            ], 400);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:roles,name',
         ]);
@@ -71,6 +78,15 @@ class RolesController extends Controller
             return response()->json([
                 'message' => 'Cannot update System Administrator role!',
             ], 403);
+        }
+
+        if ($request->filled('name') && Role::onlyTrashed()
+            ->where('name', $request->name)
+            ->where('id', '!=', $id)
+            ->exists()) {
+            return response()->json([
+                'message' => 'A deleted role with this name exists. Restore it instead.',
+            ], 400);
         }
 
         $validated = $request->validate([
@@ -124,6 +140,28 @@ class RolesController extends Controller
                 'message' => 'Failed to delete role!',
             ], 500);
         }
+    }
+
+    public function restore($id)
+    {
+        $role = Role::withTrashed()->findOrFail($id);
+
+        if (!$role->trashed()) {
+            return response()->json([
+                'message' => 'Role is not deleted!',
+            ], 400);
+        }
+
+        $role->restore();
+
+        $action = ActionType::Updated->value;
+        $module = 'Roles';
+        $description = 'Restored role ' . $role->id;
+        $this->setAuditLog($action, $module, $description, null, $role->toArray());
+
+        return response()->json([
+            'message' => 'Role restored successfully!',
+        ]);
     }
 
     public function list()

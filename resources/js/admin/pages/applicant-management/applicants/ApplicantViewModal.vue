@@ -219,7 +219,7 @@ const actionBadgeClass = (action) => {
                 <div class="modal-body" v-if="applicant">
 
                     <!-- Header -->
-                    <div class="d-flex align-items-start justify-content-between mb-2">
+                    <div class="d-flex align-items-start justify-content-between pe-4 mb-2">
                         <div>
                             <h6 class="mb-1">
                                 <i class="bi bi-person-vcard-fill me-1"></i>
@@ -397,7 +397,7 @@ const actionBadgeClass = (action) => {
                             <div v-for="log in activityLogs" :key="log.id" class="activity-item">
                                 <div class="activity-dot" :class="actionBadgeClass(log.action)"></div>
                                 <div class="activity-content">
-                                    <div class="d-flex align-items-start justify-content-between gap-2">
+                                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
                                         <span class="badge activity-badge" :class="actionBadgeClass(log.action)">
                                             {{ actionLabel(log.action) }}
                                         </span>

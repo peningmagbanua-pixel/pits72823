@@ -342,27 +342,32 @@
     }
 
     onDOMContentLoaded(() => {
-        const button = document.querySelectorAll(SELECTOR_DATA_TOGGLE$1);
-        button.forEach(btn => {
-            btn.addEventListener('click', event => {
-                const target = event.target;
-                const targetItem = target.closest(SELECTOR_NAV_ITEM$1);
-                const targetLink = target.closest(SELECTOR_NAV_LINK);
-                const lteToggleElement = event.currentTarget;
-                if (target?.getAttribute('href') === '#' || targetLink?.getAttribute('href') === '#') {
-                    event.preventDefault();
-                }
-                if (targetItem) {
-                    const accordionAttr = lteToggleElement.dataset.accordion;
-                    const animationSpeedAttr = lteToggleElement.dataset.animationSpeed;
-                    const config = {
-                        accordion: accordionAttr === undefined ? Default.accordion : accordionAttr === 'true',
-                        animationSpeed: animationSpeedAttr === undefined ? Default.animationSpeed : Number(animationSpeedAttr)
-                    };
-                    const data = new Treeview(targetItem, config);
-                    data.toggle();
-                }
-            });
+        // Delegate on document: the sidebar menu is rendered dynamically (by
+        // Vue, after the auth request resolves), so binding to elements found
+        // at script-load time would always miss them.
+        document.addEventListener('click', event => {
+            const lteToggleElement = event.target.closest(SELECTOR_DATA_TOGGLE$1);
+            if (!lteToggleElement) {
+                return;
+            }
+            const target = event.target;
+            const targetItem = target.closest(SELECTOR_NAV_ITEM$1);
+            const targetLink = target.closest(SELECTOR_NAV_LINK);
+            if (target?.getAttribute('href') === '#' || targetLink?.getAttribute('href') === '#') {
+                event.preventDefault();
+            }
+            // Only items that actually own a submenu should toggle.
+            if (!targetItem?.querySelector(SELECTOR_TREEVIEW_MENU)) {
+                return;
+            }
+            const accordionAttr = lteToggleElement.dataset.accordion;
+            const animationSpeedAttr = lteToggleElement.dataset.animationSpeed;
+            const config = {
+                accordion: accordionAttr === undefined ? Default.accordion : accordionAttr === 'true',
+                animationSpeed: animationSpeedAttr === undefined ? Default.animationSpeed : Number(animationSpeedAttr)
+            };
+            const data = new Treeview(targetItem, config);
+            data.toggle();
         });
     });
 
@@ -462,17 +467,16 @@
     }
 
     onDOMContentLoaded(() => {
-        const buttons = document.querySelectorAll(SELECTOR_FULLSCREEN_TOGGLE);
-        buttons.forEach(btn => {
-            btn.addEventListener('click', event => {
-                event.preventDefault();
-                const target = event.target;
-                const button = target.closest(SELECTOR_FULLSCREEN_TOGGLE);
-                if (button) {
-                    const data = new FullScreen(button, undefined);
-                    data.toggleFullScreen();
-                }
-            });
+        // Delegate on document: the header is rendered dynamically, after
+        // this script has already run.
+        document.addEventListener('click', event => {
+            const button = event.target.closest(SELECTOR_FULLSCREEN_TOGGLE);
+            if (!button) {
+                return;
+            }
+            event.preventDefault();
+            const data = new FullScreen(button, undefined);
+            data.toggleFullScreen();
         });
     });
 
@@ -567,53 +571,74 @@
     }
 
     onDOMContentLoaded(() => {
-        const sidebar = document?.querySelector(SELECTOR_APP_SIDEBAR);
-        if (sidebar) {
-            const data = new PushMenu(sidebar, Defaults);
-            data.init();
-            window.addEventListener('resize', () => {
-                data.init();
-            });
-        }
-        const sidebarOverlay = document.createElement('div');
-        sidebarOverlay.className = CLASS_NAME_SIDEBAR_OVERLAY;
-        document.querySelector(SELECTOR_APP_WRAPPER)?.append(sidebarOverlay);
-        let overlayTouchMoved = false;
-        sidebarOverlay.addEventListener('touchstart', () => {
-            overlayTouchMoved = false;
-        }, { passive: true });
-        sidebarOverlay.addEventListener('touchmove', () => {
-            overlayTouchMoved = true;
-        }, { passive: true });
-        sidebarOverlay.addEventListener('touchend', event => {
-            if (!overlayTouchMoved) {
-                event.preventDefault();
-                const target = event.currentTarget;
-                const data = new PushMenu(target, Defaults);
-                data.collapse();
+        let pushMenu = null;
+        let sidebarOverlay = null;
+
+        const initPushMenu = () => {
+            const sidebar = document.querySelector(SELECTOR_APP_SIDEBAR);
+            if (!sidebar) {
+                return false;
             }
-            overlayTouchMoved = false;
-        }, { passive: false });
-        sidebarOverlay.addEventListener('click', event => {
-            event.preventDefault();
-            const target = event.currentTarget;
-            const data = new PushMenu(target, Defaults);
-            data.collapse();
-        });
-        const fullBtn = document.querySelectorAll(SELECTOR_SIDEBAR_TOGGLE);
-        fullBtn.forEach(btn => {
-            btn.addEventListener('click', event => {
-                event.preventDefault();
-                let button = event.currentTarget;
-                if (button?.dataset.lteToggle !== 'sidebar') {
-                    button = button?.closest(SELECTOR_SIDEBAR_TOGGLE);
-                }
-                if (button) {
-                    event?.preventDefault();
-                    const data = new PushMenu(button, Defaults);
-                    data.toggle();
+
+            pushMenu = new PushMenu(sidebar, Defaults);
+            pushMenu.init();
+
+            if (!sidebarOverlay) {
+                sidebarOverlay = document.createElement('div');
+                sidebarOverlay.className = CLASS_NAME_SIDEBAR_OVERLAY;
+                document.querySelector(SELECTOR_APP_WRAPPER)?.append(sidebarOverlay);
+                let overlayTouchMoved = false;
+                sidebarOverlay.addEventListener('touchstart', () => {
+                    overlayTouchMoved = false;
+                }, { passive: true });
+                sidebarOverlay.addEventListener('touchmove', () => {
+                    overlayTouchMoved = true;
+                }, { passive: true });
+                sidebarOverlay.addEventListener('touchend', event => {
+                    if (!overlayTouchMoved) {
+                        event.preventDefault();
+                        const target = event.currentTarget;
+                        const data = new PushMenu(target, Defaults);
+                        data.collapse();
+                    }
+                    overlayTouchMoved = false;
+                }, { passive: false });
+                sidebarOverlay.addEventListener('click', event => {
+                    event.preventDefault();
+                    const target = event.currentTarget;
+                    const data = new PushMenu(target, Defaults);
+                    data.collapse();
+                });
+            }
+
+            return true;
+        };
+
+        // The sidebar is rendered dynamically (after the auth request
+        // resolves), so wait for it to appear before initializing.
+        if (!initPushMenu()) {
+            const observer = new MutationObserver(() => {
+                if (initPushMenu()) {
+                    observer.disconnect();
                 }
             });
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
+
+        window.addEventListener('resize', () => {
+            pushMenu?.init();
+        });
+
+        // Delegate on document: the header toggle button is rendered
+        // dynamically, after this script has already run.
+        document.addEventListener('click', event => {
+            const button = event.target.closest(SELECTOR_SIDEBAR_TOGGLE);
+            if (!button) {
+                return;
+            }
+            event.preventDefault();
+            const data = new PushMenu(button, Defaults);
+            data.toggle();
         });
     });
 

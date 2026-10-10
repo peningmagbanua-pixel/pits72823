@@ -51,10 +51,6 @@
                 <div class="d-grid mb-3">
                     <button type="submit" id="loginBtn" class="btn btn-primary btn-sm fw-semibold shadow-sm d-flex align-items-center justify-content-center gap-2" disabled>
                         <span class="btn-text">Log in</span>
-                        <span class="btn-loading d-none">
-                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                            Loading…
-                        </span>
                     </button>
                 </div>
 

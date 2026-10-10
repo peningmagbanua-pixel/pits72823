@@ -26,6 +26,12 @@ class UsersResource extends JsonResource
         $roles = $this->roles->pluck('name')->toArray();
         $role_ids = $this->roles->pluck('id')->toArray();
         $is_system_administrator = in_array($this->SYSTEM_ADMINISTRATOR, $roles);
+        $program_access = $this->program_assignments
+            ->pluck('program')
+            ->map(fn ($program) => strtoupper(trim((string) $program)))
+            ->unique()
+            ->values()
+            ->toArray();
 
         return [
             'created_at' => date("Y-m-d H:i:s", strtotime($this->created_at)),
@@ -38,6 +44,7 @@ class UsersResource extends JsonResource
             'extname' => $this->extname,
             'roles' => $roles,
             'role_ids' => $role_ids,
+            'program_access' => $program_access,
             'avatar' => $this->avatar,
             'is_system_administrator' => $is_system_administrator,
             'is_active' => $status,

@@ -1,19 +1,99 @@
 <script setup>
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { onMounted } from "vue";
+import axios from "axios";
+import Swal from "sweetalert2";
+import { sweetAlert, processingAlert } from "@/sweetalert.js";
 import { useAuthApplicantStore } from "../../stores/AuthApplicantStore";
 
 const router = useRouter();
 const authApplicantStore = useAuthApplicantStore();
 
-onMounted(() => {
-    if (authApplicantStore.applicant.program) {
+const programs = ref([]);
+const requirementsByProgram = ref({});
+const loading = ref(true);
+
+onMounted(async () => {
+    // Already submitted: program selection (and the form) is only reachable
+    // again while the application is rejected (reapplication).
+    const applicant = authApplicantStore.applicant;
+    if (applicant.program && applicant.application_status !== 'rejected') {
         router.push("/applicant/dashboard");
+        return;
     }
+
+    loading.value = true;
+
+    try {
+        const res = await axios.get('/api/applicant/programs');
+        programs.value = res.data.data || res.data;
+    } catch (e) {
+        console.error('Failed to fetch programs:', e);
+    }
+
+    // Requirements are resolved per program on the server; the client only
+    // ever passes the public program initials, never a program id.
+    try {
+        const entries = await Promise.all(
+            programs.value.map(async (prog) => {
+                const res = await axios.get('/api/applicant/requirements', {
+                    params: { program: prog.initials },
+                });
+                return [prog.initials, res.data];
+            })
+        );
+        requirementsByProgram.value = Object.fromEntries(entries);
+    } catch (e) {
+        console.error('Failed to fetch requirements:', e);
+    }
+
+    loading.value = false;
 });
 
-const selectProgram = (program) => {
-    router.push({ name: "applicant.application.form", query: { program } });
+const selectProgram = async (program) => {
+    processingAlert('.btn');
+    try {
+        // The server resolves and stores the actual program id; the form URL
+        // stays generic and carries no program identifier.
+        await axios.post('/api/applicant/application/select-program', {
+            program: program.initials,
+        });
+        Swal.close();
+        router.push({ name: "applicant.application.form" });
+    } catch (e) {
+        sweetAlert(
+            'error',
+            e.response?.data?.message || 'Unable to select the program. Please try again.'
+        );
+    }
+};
+
+const getProgramIcon = (initials) => {
+    if (initials === 'SPICT') return 'bi-pc-display-horizontal';
+    if (initials === 'STE') return 'bi-mortarboard-fill';
+    return 'bi-book';
+};
+
+const getProgramColor = (initials) => {
+    if (initials === 'SPICT') return 'primary';
+    if (initials === 'STE') return 'success';
+    return 'secondary';
+};
+
+const getProgramDescription = (initials) => {
+    if (initials === 'SPICT') return 'Focuses on Information and Communications Technology, computer programming, and science integration.';
+    if (initials === 'STE') return 'An intensive science and technology program designed for academically advanced students.';
+    return '';
+};
+
+const getRequiredDocuments = (initials) => {
+    return (requirementsByProgram.value[initials] || []).map(r => r.name);
+};
+
+const getButtonLabel = (initials) => {
+    if (initials === 'SPICT') return 'Apply for SPICT';
+    if (initials === 'STE') return 'Apply for STE';
+    return `Apply for ${initials}`;
 };
 </script>
 
@@ -65,90 +145,38 @@ const selectProgram = (program) => {
             </div>
 
             <!-- Program Cards -->
-            <div class="row justify-content-center g-4">
-                <!-- SPICT -->
-                <div class="col-lg-5 col-md-6">
-                    <div
-                        class="card border-0 shadow-sm h-100 program-card"
-                        @click="selectProgram('SPICT')"
-                        role="button"
-                        tabindex="0"
-                        @keyup.enter="selectProgram('SPICT')"
-                    >
-                        <div class="card-body text-center p-5">
-                            <div class="program-icon mb-3 text-primary">
-                                <i
-                                    class="bi bi-pc-display-horizontal"
-                                    style="font-size: 3.5rem"
-                                ></i>
-                            </div>
-                            <span
-                                class="badge bg-primary-subtle text-primary mb-2"
-                                >SPICT</span
-                            >
-                            <h5 class="fw-bold mb-2">
-                                Special Curriculum Program in Information &
-                                Communications Technology (SPICT)
-                            </h5>
-                            <p class="text-muted small mb-4">
-                                Focuses on Information and Communications
-                                Technology, computer programming, and science
-                                integration.
-                            </p>
-                            <div class="text-start mb-4">
-                                <div
-                                    class="small text-muted mb-1 fw-semibold text-uppercase"
-                                    style="
-                                        font-size: 11px;
-                                        letter-spacing: 0.05em;
-                                    "
-                                >
-                                    Required Documents
-                                </div>
-                                <ul class="list-unstyled small mt-2">
-                                    <li class="mb-1">
-                                        <i
-                                            class="bi bi-check-circle-fill text-success me-2"
-                                        ></i
-                                        >SF9 / Report Card
-                                    </li>
-                                </ul>
-                            </div>
-                            <button class="btn btn-primary w-100 fw-semibold">
-                                <i class="bi bi-arrow-right-circle me-2"></i
-                                >Apply for SPICT
-                            </button>
-                        </div>
-                    </div>
+            <div v-if="loading" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
+            </div>
 
-                <!-- STE -->
-                <div class="col-lg-5 col-md-6">
+            <div v-else class="row justify-content-center g-4">
+                <div v-for="prog in programs" :key="prog.initials" class="col-lg-5 col-md-6">
                     <div
                         class="card border-0 shadow-sm h-100 program-card"
-                        @click="selectProgram('STE')"
+                        @click="selectProgram(prog)"
                         role="button"
                         tabindex="0"
-                        @keyup.enter="selectProgram('STE')"
+                        @keyup.enter="selectProgram(prog)"
                     >
-                        <div class="card-body text-center p-5">
-                            <div class="program-icon mb-3 text-success">
+                        <div class="card-body text-center p-4 p-md-5">
+                            <div class="program-icon mb-3" :class="'text-' + getProgramColor(prog.initials)">
                                 <i
-                                    class="bi bi-mortarboard-fill"
+                                    :class="getProgramIcon(prog.initials)"
                                     style="font-size: 3.5rem"
                                 ></i>
                             </div>
                             <span
-                                class="badge bg-success-subtle text-success mb-2"
-                                >STE</span
+                                class="badge" :class="'bg-' + getProgramColor(prog.initials) + '-subtle text-' + getProgramColor(prog.initials) + ' mb-2'"
                             >
+                                {{ prog.initials }}
+                            </span>
                             <h5 class="fw-bold mb-2">
-                                Special Curriculum Program in Science,
-                                Technology and Engineering
+                                {{ prog.name }}
                             </h5>
                             <p class="text-muted small mb-4">
-                                An intensive science and technology program
-                                designed for academically advanced students.
+                                {{ getProgramDescription(prog.initials) }}
                             </p>
                             <div class="text-start mb-4">
                                 <div
@@ -161,35 +189,18 @@ const selectProgram = (program) => {
                                     Required Documents
                                 </div>
                                 <ul class="list-unstyled small mt-2">
-                                    <li class="mb-1">
+                                    <li class="mb-1" v-for="doc in getRequiredDocuments(prog.initials)" :key="doc">
                                         <i
-                                            class="bi bi-check-circle-fill text-success me-2"
+                                            class="bi bi-check-circle-fill"
+                                            :class="'text-' + getProgramColor(prog.initials) + ' me-2'"
                                         ></i
-                                        >SF9 / Report Card
-                                    </li>
-                                    <li class="mb-1">
-                                        <i
-                                            class="bi bi-check-circle-fill text-success me-2"
-                                        ></i
-                                        >Certificate of Good Moral Character
-                                    </li>
-                                    <li class="mb-1">
-                                        <i
-                                            class="bi bi-check-circle-fill text-success me-2"
-                                        ></i
-                                        >Health Declaration Form
-                                    </li>
-                                    <li class="mb-1">
-                                        <i
-                                            class="bi bi-check-circle-fill text-success me-2"
-                                        ></i
-                                        >Signed STE Declaration Form
+                                        >{{ doc }}
                                     </li>
                                 </ul>
                             </div>
-                            <button class="btn btn-success w-100 fw-semibold">
+                            <button class="btn fw-semibold w-100" :class="'btn-' + getProgramColor(prog.initials)">
                                 <i class="bi bi-arrow-right-circle me-2"></i
-                                >Apply for STE
+                                >{{ getButtonLabel(prog.initials) }}
                             </button>
                         </div>
                     </div>

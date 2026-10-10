@@ -97,25 +97,24 @@ const handleSubmit = (values, actions) => {
                         <h6 class="text-secondary fw-bold mb-3">Dashboard Dates</h6>
 
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="application_start" class="form-label">Application Start</label>
                                     <input type="date" v-model="form.application_start" id="application_start"
+                                        :class="{ 'is-invalid': errors.application_start }"
                                         class="form-control form-control-sm">
+                                    <span class="invalid-feedback">{{ errors.application_start }}</span>
+                                    <small class="text-muted">Month, day, and year the application opens.</small>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="application_deadline" class="form-label">Application Deadline</label>
                                     <input type="date" v-model="form.application_deadline" id="application_deadline"
+                                        :class="{ 'is-invalid': errors.application_deadline }"
                                         class="form-control form-control-sm">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="exam_date" class="form-label">Exam Date</label>
-                                    <input type="date" v-model="form.exam_date" id="exam_date"
-                                        class="form-control form-control-sm">
+                                    <span class="invalid-feedback">{{ errors.application_deadline }}</span>
+                                    <small class="text-muted">Month, day, and year the application closes.</small>
                                 </div>
                             </div>
                         </div>

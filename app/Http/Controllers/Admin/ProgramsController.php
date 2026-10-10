@@ -7,17 +7,19 @@ use App\Http\Resources\Admin\ProgramResource;
 use Illuminate\Http\Request;
 use App\Models\Admin\Program;
 use App\Traits\AuditLogsTrait;
+use App\Traits\AdminActivityLogsTrait;
 use App\Enums\ActionType;
 
 class ProgramsController extends Controller
 {
-    use AuditLogsTrait;
+    use AuditLogsTrait, AdminActivityLogsTrait;
     public function index()
     {
         $paginate = request('paginate');
         $search = request('search', '');
         $sort_order = request('sort_order', 'desc');
         $sort_field = request('sort_field', 'created_at');
+        $deleted = request('deleted') == '1';
 
         if (!in_array($sort_order, ['asc', 'desc'])) {
             $sort_order = 'desc';
@@ -28,6 +30,7 @@ class ProgramsController extends Controller
         }
 
         $program = Program::search(trim($search))
+            ->when($deleted, fn ($query) => $query->onlyTrashed())
             ->orderBy($sort_field, $sort_order)
             ->paginate($paginate);
 
@@ -61,6 +64,8 @@ class ProgramsController extends Controller
         $module = 'Programs';
         $description = 'Created program ' . $validated['initials'] . ' - ' . $validated['name'];
         $this->setAuditLog($action, $module, $description, null, $program->toArray());
+
+        $this->logAdminActivity('created_program', 'Created program ' . $validated['initials'] . ' - ' . $validated['name']);
 
         return response()->json([
             'message' => 'Program created successfully!'
@@ -98,6 +103,8 @@ class ProgramsController extends Controller
         $description = 'Updated program ' . $validated['initials'] . ' - ' . $validated['name'];
         $this->setAuditLog($action, $module, $description, $old_values, $program->toArray());
 
+        $this->logAdminActivity('updated_program', 'Updated program ' . $validated['initials'] . ' - ' . $validated['name']);
+
         return response()->json([
             'message' => 'Program updated successfully!'
         ]);
@@ -122,9 +129,37 @@ class ProgramsController extends Controller
             $description = 'Deleted program ' . $program_name;
             $this->setAuditLog($action, $module, $description, $old_values, null);
 
+            $this->logAdminActivity('deleted_program', 'Deleted program ' . $program_name);
+
             return response()->json([
                 'message' => 'Program deleted successfully!'
             ]);
         }
+    }
+
+    public function restore($id)
+    {
+        $program = Program::withTrashed()->findOrFail($id);
+
+        if (!$program->trashed()) {
+            return response()->json([
+                'message' => 'Program is not deleted!'
+            ], 400);
+        }
+
+        $program_name = $program->initials . ' - ' . $program->name;
+
+        $program->restore();
+
+        $action = ActionType::Updated->value;
+        $module = 'Programs';
+        $description = 'Restored program ' . $program_name;
+        $this->setAuditLog($action, $module, $description, null, $program->toArray());
+
+        $this->logAdminActivity('updated_program', 'Restored program ' . $program_name);
+
+        return response()->json([
+            'message' => 'Program restored successfully!'
+        ]);
     }
 }

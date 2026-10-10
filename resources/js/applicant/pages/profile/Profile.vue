@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { processingAlert } from '../../../sweetalert';
 
 const profile = ref({
     lastname: '',
@@ -31,6 +32,7 @@ const fetchProfile = async () => {
 };
 
 const updateProfile = async () => {
+    processingAlert('.btn');
     try {
         await axios.put('/api/applicant/profile/update', profile.value);
         Swal.fire('Success', 'Profile updated successfully!', 'success');
@@ -40,6 +42,7 @@ const updateProfile = async () => {
 };
 
 const changePassword = async () => {
+    processingAlert('.btn');
     try {
         await axios.put('/api/applicant/profile/change-password', passwordForm.value);
         Swal.fire('Success', 'Password changed successfully!', 'success');
