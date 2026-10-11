@@ -9,6 +9,10 @@ class FaqsTableSeeder extends Seeder
 {
     public function run(): void
     {
+        if (Faq::exists()) {
+            return;
+        }
+
         $faqs = [
             [
                 'question' => 'What are the requirements for enrollment?',
