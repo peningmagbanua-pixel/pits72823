@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
@@ -90,6 +91,28 @@ Route::get('/diag/applicant-create', function () {
     } catch (\Throwable $e) {
         return response(
             $e::class . ': ' . $e->getMessage() . "\n\n" . $e->getTraceAsString(),
+            200,
+            ['Content-Type' => 'text/plain; charset=UTF-8']
+        );
+    }
+});
+
+// TEMPORARY DIAGNOSTIC — remove after mail delivery is verified.
+// Sends a real test email through the currently configured mailer.
+Route::get('/diag/send-mail', function () {
+    set_time_limit(60);
+    try {
+        Mail::raw(
+            "Mail verification test from the Online Application System at " . now()->toDateTimeString(),
+            function ($message) {
+                $message->to('peningmagbanua@gmail.com')
+                    ->subject('CNHS Admissions - mail verification');
+            }
+        );
+        return response("SEND OK — mailer=" . config('mail.default') . "\n", 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+    } catch (\Throwable $e) {
+        return response(
+            "SEND FAILED — mailer=" . config('mail.default') . "\n" . $e::class . ': ' . substr($e->getMessage(), 0, 400) . "\n",
             200,
             ['Content-Type' => 'text/plain; charset=UTF-8']
         );
