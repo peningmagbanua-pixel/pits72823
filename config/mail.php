@@ -47,12 +47,12 @@ return [
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
-            // Allow SMTP TLS connections in local Windows environments that lack CA certificates
+            // Local Windows environments may lack CA certificates; production verifies normally
             'stream' => [
                 'ssl' => [
-                    'allow_self_signed' => true,
-                    'verify_peer'       => false,
-                    'verify_peer_name'  => false,
+                    'allow_self_signed' => (bool) env('ALLOW_SELF_SIGNED_SSL', env('APP_ENV') === 'local'),
+                    'verify_peer'       => (bool) env('VERIFY_SSL_PEER', env('APP_ENV') !== 'local'),
+                    'verify_peer_name'  => (bool) env('VERIFY_SSL_PEER', env('APP_ENV') !== 'local'),
                 ],
             ],
         ],
