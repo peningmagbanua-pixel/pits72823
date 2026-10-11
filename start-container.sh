@@ -7,6 +7,7 @@ if [ "$IS_LARAVEL" = "true" ]; then
     # Run migrations and seeding
     echo "Running migrations and seeding database ..."
     php artisan migrate --force
+    php artisan db:seed --force
   fi
 
   php artisan storage:link --force
