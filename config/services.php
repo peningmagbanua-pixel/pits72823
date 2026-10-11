@@ -44,6 +44,13 @@ return [
         ],
     ],
 
+    'gmail_api' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'refresh_token' => env('GMAIL_REFRESH_TOKEN'),
+        'redirect' => env('GMAIL_AUTH_REDIRECT_URI', 'https://pits72823-production.up.railway.app/gmail-auth-callback'),
+    ],
+
     'google_applicant' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

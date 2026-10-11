@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
@@ -41,6 +43,45 @@ Route::get('/admin/login', function () {
 Route::post('/admin/login', [Admin\Auth\LoginController::class, 'login'])->name('admin.login.submit');
 Route::get('auth/google', [Admin\Auth\GoogleController::class, 'redirectToGoogle'])->name('admin.google.redirect');
 Route::get('auth/google/callback', [Admin\Auth\GoogleController::class, 'handleGoogleCallback']);
+
+// One-time OAuth callback used by `php artisan gmail:authorize` to capture a
+// Gmail API refresh token. Gated by a short-lived random state value so it
+// cannot be abused; see App\Console\Commands\AuthorizeGmail.
+Route::get('/gmail-auth-callback', function (\Illuminate\Http\Request $request) {
+    $expected = Cache::pull('gmail_auth.state');
+
+    if (! $expected || ! hash_equals($expected, (string) $request->query('state'))) {
+        return response('Invalid or expired state. Run php artisan gmail:authorize again and use the fresh URL.', 403);
+    }
+
+    if ($error = $request->query('error')) {
+        return response('Google returned an error: ' . e($error), 400);
+    }
+
+    $response = Http::asForm()
+        ->timeout(30)
+        ->post('https://oauth2.googleapis.com/token', [
+            'client_id' => config('services.gmail_api.client_id'),
+            'client_secret' => config('services.gmail_api.client_secret'),
+            'redirect_uri' => config('services.gmail_api.redirect'),
+            'code' => $request->query('code'),
+            'grant_type' => 'authorization_code',
+        ]);
+
+    if ($response->failed()) {
+        return response('Token exchange failed [' . $response->status() . ']: ' . $response->body(), 500);
+    }
+
+    $refreshToken = $response->json('refresh_token');
+
+    if (! $refreshToken) {
+        return response('No refresh token in the response. Make sure the account is added as a test user on the OAuth consent screen, then run php artisan gmail:authorize again.', 500);
+    }
+
+    Storage::put('gmail-oauth-token.txt', $refreshToken . "\n");
+
+    return response('Gmail authorized. Refresh token captured. You can close this tab and return to the setup.');
+});
 
 // Applicant Protected Routes
 Route::middleware(['auth:applicant', 'session-timeout:applicant', 'maintenance', 'must-change-password:applicant'])->group(function () {

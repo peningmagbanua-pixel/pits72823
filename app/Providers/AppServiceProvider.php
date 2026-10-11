@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\Transports\GmailApiTransport;
 use App\Traits\ConstantsTrait;
 
 class AppServiceProvider extends ServiceProvider
@@ -22,6 +24,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Mail::extend('gmail-api', function () {
+            $config = config('services.gmail_api');
+
+            return new GmailApiTransport(
+                (string) ($config['client_id'] ?? ''),
+                (string) ($config['client_secret'] ?? ''),
+                (string) ($config['refresh_token'] ?? ''),
+            );
+        });
+
         Gate::before(function ($user, $ability) {
 
             if ($user->roles->contains('name', $this->SYSTEM_ADMINISTRATOR)) {
