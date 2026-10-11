@@ -102,7 +102,7 @@ class RegisterController extends Controller
         try {
             Mail::to($applicant->email)
                 ->send(new ApplicantAccountCreatedMail($applicant, $generatedPassword));
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Registration email failed for ' . $applicant->email . ': ' . $e->getMessage());
         }
 
