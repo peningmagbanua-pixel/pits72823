@@ -8,6 +8,94 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
+// TEMPORARY DIAGNOSTIC — remove after the Google SSO 500 is diagnosed.
+// Probes outbound HTTPS reachability to the Google hosts Socialite uses.
+Route::get('/diag/google-hosts', function () {
+    set_time_limit(60);
+    $out = 'max_execution_time=' . ini_get('max_execution_time') . "\n\n";
+
+    $hosts = [
+        'oauth2.googleapis.com',
+        'www.googleapis.com',
+        'openidconnect.googleapis.com',
+        'accounts.google.com',
+    ];
+
+    foreach ($hosts as $host) {
+        $t = microtime(true);
+        $sock = @fsockopen($host, 443, $errno, $errstr, 8);
+        $ms = round((microtime(true) - $t) * 1000);
+        if ($sock) {
+            $out .= "TCP 443 {$host}: OPEN ({$ms}ms)\n";
+            fclose($sock);
+        } else {
+            $out .= "TCP 443 {$host}: FAIL ({$ms}ms) {$errstr}\n";
+        }
+    }
+
+    $out .= "\n";
+
+    $urls = [
+        'token endpoint (expect HTTP 400)' => 'https://oauth2.googleapis.com/tokeninfo?id_token=invalid',
+        'userinfo host (expect HTTP 401)' => 'https://www.googleapis.com/oauth2/v3/userinfo',
+        'openid userinfo (expect HTTP 401)' => 'https://openidconnect.googleapis.com/v1/userinfo',
+    ];
+
+    foreach ($urls as $label => $url) {
+        $t = microtime(true);
+        try {
+            $response = Http::timeout(10)->get($url);
+            $ms = round((microtime(true) - $t) * 1000);
+            $out .= "{$label}: HTTP {$response->status()} ({$ms}ms)\n";
+        } catch (\Throwable $e) {
+            $ms = round((microtime(true) - $t) * 1000);
+            $out .= "{$label}: FAILED ({$ms}ms) " . $e::class . ': ' . substr($e->getMessage(), 0, 200) . "\n";
+        }
+    }
+
+    return response($out, 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+});
+
+// TEMPORARY DIAGNOSTIC — remove after the applicant registration 500 is diagnosed.
+// Replays the exact DB writes of POST /applicant/register against production.
+Route::get('/diag/applicant-create', function () {
+    set_time_limit(60);
+    try {
+        $applicant = \App\Models\Applicant\Applicant::create([
+            'lastname' => 'Diag',
+            'firstname' => 'Test',
+            'middlename' => null,
+            'extname' => null,
+            'email' => 'diag-create-' . uniqid() . '@example.com',
+            'password' => 'x',
+            'must_change_password' => true,
+            'is_active' => true,
+        ]);
+
+        \App\Models\Applicant\ActivityLog::logActivity(
+            $applicant->id,
+            'diag',
+            'diagnostic create',
+            null,
+            '127.0.0.1',
+            'diagnostic'
+        );
+
+        $applicant->update(['last_login_at' => now(), 'last_login_ip' => '127.0.0.1']);
+
+        $id = $applicant->id;
+        $applicant->delete();
+
+        return response("OK: create+log+update+softdelete succeeded, id={$id}\n", 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+    } catch (\Throwable $e) {
+        return response(
+            $e::class . ': ' . $e->getMessage() . "\n\n" . $e->getTraceAsString(),
+            200,
+            ['Content-Type' => 'text/plain; charset=UTF-8']
+        );
+    }
+});
+
 // Index
 Route::get('/', function () {
     return view('index');
