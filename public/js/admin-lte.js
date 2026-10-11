@@ -895,7 +895,54 @@
             });
         }
 
+        initFormAccessibility() {
+            const enhanceForm = (form) => {
+                if (!(form instanceof HTMLFormElement) || form.dataset.a11yEnhanced) {
+                    return;
+                }
+                form.dataset.a11yEnhanced = 'true';
+
+                form.addEventListener('invalid', (event) => {
+                    if (event.target instanceof HTMLElement) {
+                        this.handleFormError(event.target);
+                    }
+                }, true);
+
+                form.addEventListener('input', (event) => {
+                    const target = event.target;
+                    if (!(target instanceof HTMLElement) || !target.matches('input, select, textarea')) {
+                        return;
+                    }
+                    if (target.classList.contains('is-invalid') && target.checkValidity()) {
+                        target.classList.remove('is-invalid');
+                        target.removeAttribute('aria-invalid');
+                        const errorId = `${target.id || target.name}-error`;
+                        document.getElementById(errorId)?.remove();
+                    }
+                });
+            };
+
+            document.querySelectorAll('form').forEach(enhanceForm);
+
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType !== Node.ELEMENT_NODE) {
+                            return;
+                        }
+                        const element = node;
+                        if (element.matches?.('form')) {
+                            enhanceForm(element);
+                        }
+                        element.querySelectorAll?.('form').forEach(enhanceForm);
+                    });
+                });
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
+
         handleFormError(input) {
+            input.setAttribute('aria-invalid', 'true');
             const errorId = `${input.id || input.name}-error`;
             let errorElement = document.getElementById(errorId);
             if (!errorElement) {

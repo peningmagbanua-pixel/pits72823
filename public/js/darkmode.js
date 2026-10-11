@@ -1,10 +1,10 @@
-const themeToggleBtn = document.getElementById('theme-toggle-icon');
-const themeIcon = document.getElementById('theme-icon');
-
 function setTheme(theme) {
     document.documentElement.setAttribute('data-bs-theme', theme);
     localStorage.setItem('theme', theme);
-    themeIcon.className = theme === 'dark' ? 'bi bi-moon-stars-fill' : 'bi bi-brightness-high-fill';
+    const themeIcon = document.getElementById('theme-icon');
+    if (themeIcon) {
+        themeIcon.className = theme === 'dark' ? 'bi bi-moon-stars-fill' : 'bi bi-brightness-high-fill';
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,7 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
     setTheme(savedTheme);
 });
 
-themeToggleBtn.addEventListener('click', () => {
+document.addEventListener('click', (event) => {
+    const themeToggleBtn = event.target.closest('#theme-toggle-icon');
+    if (!themeToggleBtn) {
+        return;
+    }
     const currentTheme = document.documentElement.getAttribute('data-bs-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
