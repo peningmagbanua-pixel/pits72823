@@ -97,16 +97,16 @@ class GoogleController extends Controller
             try {
                 Mail::to($applicant->email)
                     ->send(new ApplicantAccountCreatedMail($applicant, $plainPassword));
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error('Registration email failed for ' . $applicant->email . ': ' . $e->getMessage());
             }
 
             return redirect()->route('applicant.dashboard');
 
-        } catch (\Exception $e) {
-            \Log::error('Google OAuth callback error: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            \Log::error('Google OAuth callback error: ' . $e::class . ': ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
             return redirect()->route('applicant.login')
-                ->with('error', 'Unable to sign in with Google. Please try again.');
+                ->with('error', 'Unable to sign in with Google. Please try again. [' . class_basename($e) . ']');
         }
     }
 }

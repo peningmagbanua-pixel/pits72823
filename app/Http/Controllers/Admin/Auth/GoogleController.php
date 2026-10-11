@@ -26,10 +26,16 @@ class GoogleController extends Controller
 
     public function handleGoogleCallback(Request $request)
     {
-        $googleUser = Socialite::driver('google')
-            ->with(['redirect_uri' => config('services.google.redirect')])
-            ->stateless()
-            ->user();
+        try {
+            $googleUser = Socialite::driver('google')
+                ->with(['redirect_uri' => config('services.google.redirect')])
+                ->stateless()
+                ->user();
+        } catch (\Throwable $e) {
+            \Log::error('Admin Google OAuth callback error: ' . $e::class . ': ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            return redirect()->route('admin.login')
+                ->with('error', 'Unable to sign in with Google. Please try again. [' . class_basename($e) . ']');
+        }
 
         // Enforce an email-domain allowlist when GOOGLE_ALLOWED_DOMAINS is configured
         // (comma-separated, e.g. "deped.edu.ph,gmail.com"). Blank = any registered email.
