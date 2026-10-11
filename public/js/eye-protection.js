@@ -5,18 +5,22 @@
     function loadPreferences() {
         const savedBlueLight = localStorage.getItem('blueLight');
         const savedBrightness = localStorage.getItem('brightness');
-        
+
         if (savedBlueLight) {
             blueLight = parseInt(savedBlueLight);
         }
-        
+
         if (savedBrightness) {
             brightness = parseInt(savedBrightness);
         }
-        
+
         applyBlueLight(blueLight);
         applyBrightness(brightness);
-        
+
+        syncSliderUI();
+    }
+
+    function syncSliderUI() {
         updateSliderValue('blueLightSlider', blueLight);
         updateSliderValue('blueLightValue', blueLight);
         updateSliderValue('brightnessSlider', brightness);
@@ -42,7 +46,7 @@
             }
             return;
         }
-        
+
         const overlay = document.getElementById('blue-light-overlay');
         if (overlay) {
             overlay.style.opacity = value / 100;
@@ -80,7 +84,7 @@
             }
             return;
         }
-        
+
         const overlay = document.getElementById('brightness-overlay');
         if (overlay) {
             overlay.style.opacity = (100 - value) / 100;
@@ -129,41 +133,41 @@
         brightness = 100;
         localStorage.removeItem('blueLight');
         localStorage.removeItem('brightness');
-        
-        updateSliderValue('blueLightSlider', 0);
-        updateSliderValue('blueLightValue', 0);
-        updateSliderValue('brightnessSlider', 100);
-        updateSliderValue('brightnessValue', 100);
-        
+
+        syncSliderUI();
+
         applyBlueLight(0);
         applyBrightness(100);
     }
 
     function init() {
-        setTimeout(() => {
-            loadPreferences();
+        loadPreferences();
 
-            const blueLightSlider = document.getElementById('blueLightSlider');
-            if (blueLightSlider) {
-                blueLightSlider.addEventListener('input', function(e) {
-                    handleBlueLightChange(e.target.value);
-                });
+        document.addEventListener('input', function(e) {
+            const target = e.target;
+            if (!target || !target.id) {
+                return;
             }
+            if (target.id === 'blueLightSlider') {
+                handleBlueLightChange(target.value);
+            } else if (target.id === 'brightnessSlider') {
+                handleBrightnessChange(target.value);
+            }
+        });
 
-            const brightnessSlider = document.getElementById('brightnessSlider');
-            if (brightnessSlider) {
-                brightnessSlider.addEventListener('input', function(e) {
-                    handleBrightnessChange(e.target.value);
-                });
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('#resetEyeProtection')) {
+                resetSettings();
             }
+        });
 
-            const resetBtn = document.getElementById('resetEyeProtection');
-            if (resetBtn) {
-                resetBtn.addEventListener('click', function() {
-                    resetSettings();
-                });
+        const observer = new MutationObserver(function() {
+            if (document.getElementById('blueLightSlider')) {
+                syncSliderUI();
+                observer.disconnect();
             }
-        }, 100);
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
     }
 
     if (document.readyState === 'loading') {
