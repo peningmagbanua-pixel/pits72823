@@ -44,14 +44,35 @@ Route::post('/admin/login', [Admin\Auth\LoginController::class, 'login'])->name(
 Route::get('auth/google', [Admin\Auth\GoogleController::class, 'redirectToGoogle'])->name('admin.google.redirect');
 Route::get('auth/google/callback', [Admin\Auth\GoogleController::class, 'handleGoogleCallback']);
 
-// One-time OAuth callback used by `php artisan gmail:authorize` to capture a
-// Gmail API refresh token. Gated by a short-lived random state value so it
-// cannot be abused; see App\Console\Commands\AuthorizeGmail.
+// One-time OAuth flow for the Gmail API mailer (see App\Console\Commands\AuthorizeGmail).
+// /gmail-authorize sends the visitor to Google's consent screen; /gmail-auth-callback
+// captures the refresh token. Both are safe to leave in place: the callback requires
+// the short-lived random state minted by /gmail-authorize and only ever stores a
+// token for whichever Google account approves it.
+Route::get('/gmail-authorize', function () {
+    $state = \Illuminate\Support\Str::random(40);
+    Cache::put('gmail_auth.state', $state, now()->addMinutes(15));
+
+    $url = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
+        'client_id' => config('services.gmail_api.client_id'),
+        'redirect_uri' => config('services.gmail_api.redirect'),
+        'response_type' => 'code',
+        'access_type' => 'offline',
+        'prompt' => 'consent',
+        'scope' => 'https://www.googleapis.com/auth/gmail.send',
+        'state' => $state,
+    ]);
+
+    return redirect()->away($url);
+});
+
+// One-time OAuth callback used to capture a Gmail API refresh token. Gated by a
+// short-lived random state value so it cannot be abused.
 Route::get('/gmail-auth-callback', function (\Illuminate\Http\Request $request) {
     $expected = Cache::pull('gmail_auth.state');
 
     if (! $expected || ! hash_equals($expected, (string) $request->query('state'))) {
-        return response('Invalid or expired state. Run php artisan gmail:authorize again and use the fresh URL.', 403);
+        return response('Invalid or expired state. Visit /gmail-authorize to start again.', 403);
     }
 
     if ($error = $request->query('error')) {
@@ -75,12 +96,17 @@ Route::get('/gmail-auth-callback', function (\Illuminate\Http\Request $request) 
     $refreshToken = $response->json('refresh_token');
 
     if (! $refreshToken) {
-        return response('No refresh token in the response. Make sure the account is added as a test user on the OAuth consent screen, then run php artisan gmail:authorize again.', 500);
+        return response('No refresh token in the response. Make sure the account is listed as a test user on the OAuth consent screen, then visit /gmail-authorize again.', 500);
     }
 
     Storage::put('gmail-oauth-token.txt', $refreshToken . "\n");
 
-    return response('Gmail authorized. Refresh token captured. You can close this tab and return to the setup.');
+    return response(
+        'Gmail authorized successfully. Copy the refresh token below into the Railway variable GMAIL_REFRESH_TOKEN, then set MAIL_MAILER=gmail-api.' .
+        "\n\n" . $refreshToken,
+        200,
+        ['Content-Type' => 'text/plain; charset=UTF-8']
+    );
 });
 
 // Applicant Protected Routes
