@@ -2,12 +2,17 @@
 <?php
     $settingsPath = storage_path('app/landing_settings.json');
     $appSettings  = ['maintenance_mode' => false, 'registration_open' => true, 'allow_google_login' => true, 'auto_send_email' => true];
+    $sidebarColor = '#8B0000';
     if (file_exists($settingsPath)) {
         $json = json_decode(file_get_contents($settingsPath), true) ?? [];
         if (!empty($json['app_settings'])) {
             $appSettings = array_merge($appSettings, $json['app_settings']);
         }
+        if (!empty($json['sidebar_color']) && preg_match('/^#[0-9A-Fa-f]{6}$/', $json['sidebar_color'])) {
+            $sidebarColor = $json['sidebar_color'];
+        }
     }
+    $sidebarLight = \App\Support\SidebarColor::isLight($sidebarColor);
 ?>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
@@ -20,6 +25,32 @@
     <link rel="icon" href="{{ asset('images/cnhs_logo.png') }}" type="image/x-icon">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="{{ asset('css/spinner.css') }}">
+    <style>
+        :root { --sidebar-color: {{ $sidebarColor }}; }
+        @if($sidebarLight)
+        /* Light side menu background: keep the existing menu text/icons readable */
+        .app-sidebar {
+            --bs-color-sidebar: {{ \App\Support\SidebarColor::DARK_TEXT }};
+            --lte-sidebar-color: {{ \App\Support\SidebarColor::DARK_TEXT }};
+            --lte-sidebar-hover-color: {{ \App\Support\SidebarColor::DARK_TEXT }};
+            --lte-sidebar-active-color: {{ \App\Support\SidebarColor::DARK_TEXT }};
+            --lte-sidebar-menu-active-color: {{ \App\Support\SidebarColor::DARK_TEXT }};
+            --lte-sidebar-submenu-color: #2b3440;
+            --lte-sidebar-submenu-hover-color: {{ \App\Support\SidebarColor::DARK_TEXT }};
+            --lte-sidebar-submenu-active-color: {{ \App\Support\SidebarColor::DARK_TEXT }};
+            --lte-sidebar-header-color: rgba(31, 41, 55, .6);
+            --lte-sidebar-hover-bg: rgba(31, 41, 55, .08);
+            --lte-sidebar-menu-active-bg: rgba(31, 41, 55, .10);
+            --lte-sidebar-submenu-hover-bg: rgba(31, 41, 55, .08);
+            --lte-sidebar-submenu-active-bg: rgba(31, 41, 55, .10);
+        }
+        .sidebar-brand .brand-link,
+        .sidebar-brand .brand-text,
+        .sidebar-brand .brand-text:hover {
+            color: {{ \App\Support\SidebarColor::DARK_TEXT }} !important;
+        }
+        @endif
+    </style>
     <script>
         window.__APP_SETTINGS__ = @json($appSettings);
     </script>

@@ -52,7 +52,7 @@ const logout = () => {
 };
 </script>
 <template>
-    <aside class="app-sidebar border-end shadow-sm" style="background-color: #8B0000 !important;">
+    <aside class="app-sidebar border-end shadow-sm">
         <div class="sidebar-brand">
             <a href="/applicant/dashboard" class="brand-link">
                 <img

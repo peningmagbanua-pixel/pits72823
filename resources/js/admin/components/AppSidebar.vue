@@ -45,7 +45,6 @@ const logout = () => {
 <template>
     <aside
         class="app-sidebar border-end shadow-sm"
-        style="background-color: maroon !important"
     >
         <div class="sidebar-brand">
             <a href="/admin/dashboard" class="brand-link">

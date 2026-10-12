@@ -416,6 +416,7 @@ const landingForm = ref({
     contact_address: '',
     office_hours:  '',
     primary_color: '#8B0000',
+    sidebar_color: '#8B0000',
     logo_path:     null,
     banner_path:   null,
     hero_steps_title: 'Quick Process',
@@ -458,7 +459,7 @@ const fetchLandingSettings = async () => {
         const res = await axios.get('/api/landing-settings');
 
         // Landing form — only copy known scalar fields, never nested objects
-        const scalarFields = ['school_name','title','description','announcement','contact_phone','contact_email','contact_address','office_hours','primary_color','logo_path','banner_path'];
+        const scalarFields = ['school_name','title','description','announcement','contact_phone','contact_email','contact_address','office_hours','primary_color','sidebar_color','logo_path','banner_path'];
         scalarFields.forEach(k => {
             if (res.data[k] !== undefined) landingForm.value[k] = res.data[k];
         });
@@ -530,6 +531,17 @@ const removeHeroStep = (index) => {
     }
 };
 
+// Mirrors App\Support\SidebarColor::isLight — used only for the sample preview
+const sidebarPreviewIsLight = computed(() => {
+    const hex = landingForm.value.sidebar_color || '#8B0000';
+    const m = /^#([0-9a-f]{6})$/i.exec(hex);
+    if (!m) return false;
+    const n = parseInt(m[1], 16);
+    const lin = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const luminance = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+    return luminance > 0.3;
+});
+
 const saveLandingSettings = async () => {
     if (!landingForm.value.school_name.trim()) {
         sweetAlert('error', 'School Name / Title is required.');
@@ -556,6 +568,7 @@ const saveLandingSettings = async () => {
         fd.append('contact_address', landingForm.value.contact_address ?? '');
         fd.append('office_hours',  landingForm.value.office_hours  ?? '');
         fd.append('primary_color', landingForm.value.primary_color ?? '#8B0000');
+        fd.append('sidebar_color', landingForm.value.sidebar_color ?? '#8B0000');
         fd.append('hero_steps_title', landingForm.value.hero_steps_title ?? 'Quick Process');
         (landingForm.value.hero_steps ?? []).forEach((step, i) => fd.append(`hero_steps[${i}]`, step ?? ''));
         if (logoFile.value)   fd.append('logo',   logoFile.value);
@@ -567,7 +580,7 @@ const saveLandingSettings = async () => {
 
         // Update form with saved scalar state only
         const saved = res.data.settings || {};
-        const scalarFields = ['school_name','title','description','announcement','contact_phone','contact_email','contact_address','office_hours','primary_color','logo_path','banner_path'];
+        const scalarFields = ['school_name','title','description','announcement','contact_phone','contact_email','contact_address','office_hours','primary_color','sidebar_color','logo_path','banner_path'];
         scalarFields.forEach(k => {
             if (saved[k] !== undefined) landingForm.value[k] = saved[k];
         });
@@ -1106,6 +1119,65 @@ onMounted(async () => {
                                                 </div>
                                                 <div class="text-muted">Navbar · Footer · Buttons · Icons</div>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Side Menu Background Color (admin + applicant portals) -->
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-medium">Side Menu Background Color</label>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <input type="color" v-model="landingForm.sidebar_color"
+                                                class="form-control form-control-color form-control-sm"
+                                                style="width:48px;height:34px;padding:2px 4px;cursor:pointer;">
+                                            <input type="text" v-model="landingForm.sidebar_color"
+                                                class="form-control form-control-sm"
+                                                placeholder="#8B0000"
+                                                maxlength="7"
+                                                style="width:110px;font-family:monospace;">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                @click="landingForm.sidebar_color = '#8B0000'">
+                                                Reset
+                                            </button>
+                                        </div>
+                                        <small class="text-muted">
+                                            Sets the background of the side menu — including its header — in the Admin and Applicant portals.
+                                            Any color works, including white: on light backgrounds the existing menu text and icons automatically turn dark so they stay readable.
+                                        </small>
+                                    </div>
+
+                                    <!-- Side Menu Preview -->
+                                    <div class="col-md-6 d-flex align-items-end">
+                                        <div class="w-100 rounded border p-2" style="font-size:12px;">
+                                            <div class="rounded overflow-hidden d-flex" style="min-height:80px;">
+                                                <div class="d-flex flex-column"
+                                                    :style="{
+                                                        background: landingForm.sidebar_color || '#8B0000',
+                                                        width: '45%',
+                                                        color: sidebarPreviewIsLight ? '#1f2937' : '#ffffff',
+                                                    }">
+                                                    <div class="d-flex align-items-center gap-1 fw-semibold px-2 py-1"
+                                                        :style="{ borderBottom: '1px solid ' + (sidebarPreviewIsLight ? 'rgba(31,41,55,.2)' : 'rgba(255,255,255,.2)') }">
+                                                        <span style="width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0;"
+                                                            :style="{ background: sidebarPreviewIsLight ? '#1f2937' : '#ffffff' }"></span>
+                                                        PORTAL
+                                                    </div>
+                                                    <div class="p-2 d-flex flex-column gap-2">
+                                                        <div class="d-flex align-items-center gap-1 fw-semibold">
+                                                            <i class="bi bi-grid-fill"></i> Dashboard
+                                                        </div>
+                                                        <div class="d-flex align-items-center gap-1" :style="{ opacity: .75 }">
+                                                            <i class="bi bi-people-fill"></i> Applicants
+                                                        </div>
+                                                        <div class="d-flex align-items-center gap-1" :style="{ opacity: .75 }">
+                                                            <i class="bi bi-gear-fill"></i> Settings
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="bg-light d-flex flex-grow-1 align-items-center justify-content-center text-muted">
+                                                    Content
+                                                </div>
+                                            </div>
+                                            <div class="text-muted mt-1 text-center">Side menu background — header included — Admin &amp; Applicant</div>
                                         </div>
                                     </div>
 

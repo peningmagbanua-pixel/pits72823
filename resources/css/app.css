@@ -1606,7 +1606,7 @@ body {
 }
 
 .app-sidebar {
-    background-color: #8b0000 !important;
+    background-color: var(--sidebar-color, #8b0000) !important;
     --lte-sidebar-hover-bg: rgba(255, 255, 255, 0.15);
     --lte-sidebar-color: white;
     --lte-sidebar-hover-color: #ffffff;
@@ -1646,7 +1646,7 @@ body {
     overflow: hidden;
     font-size: 1.25rem;
     white-space: nowrap;
-    background-color: #8b0000 !important;
+    background-color: var(--sidebar-color, #8b0000) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     transition: width 0.3s ease-in-out;
 }

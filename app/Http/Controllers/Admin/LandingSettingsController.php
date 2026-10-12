@@ -21,6 +21,7 @@ class LandingSettingsController extends Controller
         'contact_address' => 'Quezon Street, F.C. Otic Poblacion (Brgy. II), Carranglan, Nueva Ecija',
         'office_hours' => "Monday – Friday: 7:30 AM – 4:30 PM\nSaturday: 7:30 AM – 12:00 PM\nSunday: Closed",
         'primary_color' => '#8B0000',
+        'sidebar_color' => '#8B0000',
         'logo_path' => null,
         'banner_path' => null,
         // Hero "Quick Process" steps
@@ -130,6 +131,7 @@ class LandingSettingsController extends Controller
             'contact_address' => 'nullable|string|max:500',
             'office_hours' => 'nullable|string|max:500',
             'primary_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'sidebar_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'hero_steps_title' => 'nullable|string|max:100',
             'hero_steps' => 'nullable|array|max:10',
             'hero_steps.*' => 'nullable|string|max:200',
@@ -172,7 +174,7 @@ class LandingSettingsController extends Controller
         }
 
         // Scalar fields
-        foreach (['school_name', 'title', 'description', 'announcement', 'contact_phone', 'contact_email', 'contact_address', 'office_hours', 'primary_color', 'hero_steps_title'] as $field) {
+        foreach (['school_name', 'title', 'description', 'announcement', 'contact_phone', 'contact_email', 'contact_address', 'office_hours', 'primary_color', 'sidebar_color', 'hero_steps_title'] as $field) {
             $settings[$field] = $request->input($field, $settings[$field] ?? '');
         }
 
@@ -219,6 +221,9 @@ class LandingSettingsController extends Controller
             unset($merged['requirements']);
             if (empty($saved['primary_color'])) {
                 $merged['primary_color'] = $this->defaults['primary_color'];
+            }
+            if (empty($saved['sidebar_color'])) {
+                $merged['sidebar_color'] = $this->defaults['sidebar_color'];
             }
 
             return $merged;
