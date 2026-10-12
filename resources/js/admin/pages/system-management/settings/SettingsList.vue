@@ -542,6 +542,23 @@ const sidebarPreviewIsLight = computed(() => {
     return luminance > 0.3;
 });
 
+// ── Settings filters ─────────────────────────────────────────────────────────
+const SETTINGS_FILTERS = [
+    { id: 'all',           label: 'All Settings',        icon: 'bi-sliders2-fill' },
+    { id: 'branding',      label: 'Branding',            icon: 'bi-palette-fill' },
+    { id: 'page-info',     label: 'Page Information',    icon: 'bi-file-text-fill' },
+    { id: 'announcement',  label: 'Announcement',        icon: 'bi-megaphone-fill' },
+    { id: 'quick-process', label: 'Quick Process Steps', icon: 'bi-list-ordinal' },
+];
+const activeFilter = ref('all');
+
+// A landing-page field group is visible on "All Settings" or on its own filter
+const showSection = (id) => activeFilter.value === 'all' || activeFilter.value === id;
+
+const activeFilterMeta = computed(() =>
+    SETTINGS_FILTERS.find(f => f.id === activeFilter.value) || SETTINGS_FILTERS[0]
+);
+
 const saveLandingSettings = async () => {
     if (!landingForm.value.school_name.trim()) {
         sweetAlert('error', 'School Name / Title is required.');
@@ -642,10 +659,23 @@ onMounted(async () => {
 
     <div class="app-content">
         <div class="container-fluid">
+
+            <!-- ── Filter buttons ──────────────────────────────────── -->
+            <div v-if="permissions.browse" class="mb-4">
+                <div class="d-flex flex-wrap gap-2">
+                    <button v-for="f in SETTINGS_FILTERS" :key="f.id" type="button"
+                        class="btn btn-sm rounded-pill px-3 py-2"
+                        :class="activeFilter === f.id ? 'btn-primary' : 'btn-outline-secondary bg-white'"
+                        @click="activeFilter = f.id">
+                        <i class="bi me-1" :class="f.icon"></i>{{ f.label }}
+                    </button>
+                </div>
+            </div>
+
             <div class="row g-4">
 
                 <!-- ── 1. Application Settings ──────────────────────────── -->
-                <div v-if="permissions.browse" class="col-12">
+                <div v-if="permissions.browse && activeFilter === 'all'" class="col-12">
                     <div class="card shadow-sm border-0" style="font-size: 13px;">
                         <div class="card-header bg-white py-3 border-bottom">
                             <h6 class="mb-0 fw-bold">
@@ -727,7 +757,7 @@ onMounted(async () => {
                 </div>
 
                 <!-- ── 2. Online Application Period ─────────────────────── -->
-                <div v-if="onlineApplicationPermissions.browse" class="col-12">
+                <div v-if="onlineApplicationPermissions.browse && activeFilter === 'all'" class="col-12">
                     <div class="card shadow-sm border-0" style="font-size: 13px;">
                         <div class="card-header bg-white py-3 border-bottom">
                             <h6 class="mb-0 fw-bold">
@@ -783,7 +813,7 @@ onMounted(async () => {
                 </div>
 
                 <!-- ── 3. Requirements ───────────────────────────────────── -->
-                <div v-if="permissions.browse" class="col-12">
+                <div v-if="permissions.browse && activeFilter === 'all'" class="col-12">
                     <div class="card shadow-sm border-0" style="font-size: 13px;">
                         <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                             <h6 class="mb-0 fw-bold">
@@ -874,7 +904,7 @@ onMounted(async () => {
                 </div>
 
                 <!-- ── 4. Notifications ──────────────────────────────────── -->
-                <div v-if="permissions.browse" class="col-12">
+                <div v-if="permissions.browse && activeFilter === 'all'" class="col-12">
                     <div class="card shadow-sm border-0" style="font-size: 13px;">
                         <div class="card-header bg-white py-3 border-bottom">
                             <h6 class="mb-0 fw-bold">
@@ -927,6 +957,7 @@ onMounted(async () => {
                             <h6 class="mb-0 fw-bold">
                                 <i class="bi bi-window-fullscreen me-2 text-secondary"></i>Landing Page Settings
                             </h6>
+                            <small class="text-muted">Branding, page content, announcement, and quick process steps for the public landing page.</small>
                         </div>
 
                         <div class="card-body">
@@ -936,10 +967,16 @@ onMounted(async () => {
                             </div>
 
                             <div v-else>
-                                <div class="row g-3">
+                                <!-- Focused-section heading (hidden on "All Settings") -->
+                                <div v-if="activeFilter !== 'all'" class="d-flex align-items-center mb-4 pb-2 border-bottom">
+                                    <i class="bi me-2 fs-5 text-secondary" :class="activeFilterMeta.icon"></i>
+                                    <h6 class="mb-0 fw-bold">{{ activeFilterMeta.label }}</h6>
+                                </div>
+
+                                <div class="row g-4">
 
                                     <!-- Logo -->
-                                    <div class="col-md-6">
+                                    <div v-if="showSection('branding')" class="col-md-6">
                                         <label class="form-label fw-medium">Logo</label>
                                         <div class="d-flex align-items-center gap-3 mb-2">
                                             <img :src="currentLogoUrl || '/images/cnhs_logo.png'"
@@ -962,7 +999,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- Banner Image -->
-                                    <div class="col-md-6">
+                                    <div v-if="showSection('branding')" class="col-md-6">
                                         <label class="form-label fw-medium">Banner Image</label>
                                         <div class="d-flex align-items-center gap-3 mb-2">
                                             <div class="rounded border d-flex align-items-center justify-content-center"
@@ -988,7 +1025,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- School Name -->
-                                    <div class="col-md-6">
+                                    <div v-if="showSection('branding')" class="col-md-6">
                                         <label class="form-label fw-medium required">School Name / Title</label>
                                         <input type="text" v-model="landingForm.school_name"
                                             class="form-control form-control-sm"
@@ -996,7 +1033,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- Hero Title -->
-                                    <div class="col-md-6">
+                                    <div v-if="showSection('page-info')" class="col-md-6">
                                         <label class="form-label fw-medium required">Hero Title</label>
                                         <input type="text" v-model="landingForm.title"
                                             class="form-control form-control-sm"
@@ -1004,7 +1041,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- Description -->
-                                    <div class="col-12">
+                                    <div v-if="showSection('page-info')" class="col-12">
                                         <label class="form-label fw-medium required">Description</label>
                                         <textarea v-model="landingForm.description"
                                             class="form-control form-control-sm" rows="2"
@@ -1012,7 +1049,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- Announcement -->
-                                    <div class="col-12">
+                                    <div v-if="showSection('announcement')" class="col-12">
                                         <label class="form-label fw-medium">Announcement</label>
                                         <input type="text" v-model="landingForm.announcement"
                                             class="form-control form-control-sm"
@@ -1021,7 +1058,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- Quick Process Steps (hero) -->
-                                    <div class="col-12">
+                                    <div v-if="showSection('quick-process')" class="col-12">
                                         <label class="form-label fw-medium">Quick Process Steps</label>
                                         <input type="text" v-model="landingForm.hero_steps_title"
                                             class="form-control form-control-sm mb-2"
@@ -1052,7 +1089,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- Contact Phone -->
-                                    <div class="col-md-6">
+                                    <div v-if="showSection('page-info')" class="col-md-6">
                                         <label class="form-label fw-medium">Contact Phone</label>
                                         <input type="text" v-model="landingForm.contact_phone"
                                             class="form-control form-control-sm"
@@ -1060,7 +1097,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- Contact Email -->
-                                    <div class="col-md-6">
+                                    <div v-if="showSection('page-info')" class="col-md-6">
                                         <label class="form-label fw-medium">Contact Email</label>
                                         <input type="email" v-model="landingForm.contact_email"
                                             class="form-control form-control-sm"
@@ -1068,7 +1105,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- Address -->
-                                    <div class="col-12">
+                                    <div v-if="showSection('page-info')" class="col-12">
                                         <label class="form-label fw-medium">Address</label>
                                         <input type="text" v-model="landingForm.contact_address"
                                             class="form-control form-control-sm"
@@ -1076,7 +1113,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- Office Hours -->
-                                    <div class="col-12">
+                                    <div v-if="showSection('page-info')" class="col-12">
                                         <label class="form-label fw-medium">Office Hours</label>
                                         <textarea v-model="landingForm.office_hours"
                                             class="form-control form-control-sm" rows="3"
@@ -1085,7 +1122,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- Primary Color -->
-                                    <div class="col-md-6">
+                                    <div v-if="showSection('branding')" class="col-md-6">
                                         <label class="form-label fw-medium">Primary Color</label>
                                         <div class="d-flex align-items-center gap-2">
                                             <input type="color" v-model="landingForm.primary_color"
@@ -1107,7 +1144,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- Color Preview -->
-                                    <div class="col-md-6 d-flex align-items-end">
+                                    <div v-if="showSection('branding')" class="col-md-6 d-flex align-items-end">
                                         <div class="w-100 rounded border p-2 d-flex gap-2 align-items-center"
                                             style="font-size:12px;">
                                             <div class="rounded"
@@ -1123,7 +1160,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- Side Menu Background Color (admin + applicant portals) -->
-                                    <div class="col-md-6">
+                                    <div v-if="showSection('branding')" class="col-md-6">
                                         <label class="form-label fw-medium">Side Menu Background Color</label>
                                         <div class="d-flex align-items-center gap-2">
                                             <input type="color" v-model="landingForm.sidebar_color"
@@ -1146,7 +1183,7 @@ onMounted(async () => {
                                     </div>
 
                                     <!-- Side Menu Preview -->
-                                    <div class="col-md-6 d-flex align-items-end">
+                                    <div v-if="showSection('branding')" class="col-md-6 d-flex align-items-end">
                                         <div class="w-100 rounded border p-2" style="font-size:12px;">
                                             <div class="rounded overflow-hidden d-flex" style="min-height:80px;">
                                                 <div class="d-flex flex-column"
@@ -1255,7 +1292,7 @@ onMounted(async () => {
                 </div>
 
                 <!-- ── 6. Session Timeout Settings ───────────────────────── -->
-                <div v-if="permissions.browse" class="col-12">
+                <div v-if="permissions.browse && activeFilter === 'all'" class="col-12">
                     <div class="card shadow-sm border-0" style="font-size: 13px;">
                         <div class="card-header bg-white py-3 border-bottom">
                             <h6 class="mb-0 fw-bold">
