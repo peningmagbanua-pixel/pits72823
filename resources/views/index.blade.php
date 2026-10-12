@@ -13,6 +13,13 @@
             'office_hours' => "Monday – Friday: 7:30 AM – 4:30 PM\nSaturday: 7:30 AM – 12:00 PM\nSunday: Closed",
             'logo_path'    => null,
             'banner_path'  => null,
+            'hero_steps_title' => 'Quick Process',
+            'hero_steps'   => [
+                'Register and choose your program',
+                'Verify your email address',
+                'Fill out the application form',
+                'Wait for admission review',
+            ],
         ], json_decode(file_get_contents($settingsFile), true) ?? [])
         : [
             'school_name'  => 'CNHS Online Application',
@@ -24,6 +31,13 @@
             'office_hours' => "Monday – Friday: 7:30 AM – 4:30 PM\nSaturday: 7:30 AM – 12:00 PM\nSunday: Closed",
             'logo_path'    => null,
             'banner_path'  => null,
+            'hero_steps_title' => 'Quick Process',
+            'hero_steps'   => [
+                'Register and choose your program',
+                'Verify your email address',
+                'Fill out the application form',
+                'Wait for admission review',
+            ],
         ];
 
     $logoUrl   = $ls['logo_path']   ? asset('storage/' . $ls['logo_path'])   : asset('images/cnhs_logo.png');
@@ -31,6 +45,18 @@
 
     // Split office hours string into display lines
     $officeLines = array_filter(array_map('trim', explode("\n", $ls['office_hours'])));
+
+    // Hero "Quick Process" steps (editable from Admin → Settings → Landing Page)
+    $heroStepsTitle = trim((string) ($ls['hero_steps_title'] ?? '')) !== '' ? $ls['hero_steps_title'] : 'Quick Process';
+    $heroSteps = array_values(array_filter(array_map('trim', (array) ($ls['hero_steps'] ?? []))));
+    if (!$heroSteps) {
+        $heroSteps = [
+            'Register and choose your program',
+            'Verify your email address',
+            'Fill out the application form',
+            'Wait for admission review',
+        ];
+    }
 ?>
 <html lang="en">
 
@@ -307,11 +333,10 @@
                     <h1 class="hero-title">{{ $ls['title'] }}</h1>
                     <p class="hero-subtitle">{{ $ls['description'] }}</p>
                     <div class="hero-steps">
-                        <strong>Quick Process:</strong><br>
-                        <i class="bi bi-1-circle-fill me-2" style="color: var(--primary);"></i>Register and choose your program<br>
-                        <i class="bi bi-2-circle-fill me-2" style="color: var(--primary);"></i>Verify your email address<br>
-                        <i class="bi bi-3-circle-fill me-2" style="color: var(--primary);"></i>Fill out your application form<br>
-                        <i class="bi bi-4-circle-fill me-2" style="color: var(--primary);"></i>Wait for admission review
+                        <strong>{{ $heroStepsTitle }}:</strong><br>
+                        @foreach($heroSteps as $i => $step)
+                            <i class="bi bi-{{ ($i + 1) <= 9 ? ($i + 1) . '-circle-fill' : 'circle-fill' }} me-2" style="color: var(--primary);"></i>{{ $step }}@if(!$loop->last)<br>@endif
+                        @endforeach
                     </div>
                     <div class="d-flex gap-3 flex-wrap">
                         <a href="{{ route('applicant.register') }}" class="btn btn-custom"

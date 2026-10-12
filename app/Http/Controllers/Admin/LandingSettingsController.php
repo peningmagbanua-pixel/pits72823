@@ -23,6 +23,14 @@ class LandingSettingsController extends Controller
         'primary_color' => '#8B0000',
         'logo_path' => null,
         'banner_path' => null,
+        // Hero "Quick Process" steps
+        'hero_steps_title' => 'Quick Process',
+        'hero_steps' => [
+            'Register and choose your program',
+            'Verify your email address',
+            'Fill out the application form',
+            'Wait for admission review',
+        ],
         // Application Settings
         'app_settings' => [
             'maintenance_mode' => false,
@@ -122,6 +130,9 @@ class LandingSettingsController extends Controller
             'contact_address' => 'nullable|string|max:500',
             'office_hours' => 'nullable|string|max:500',
             'primary_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'hero_steps_title' => 'nullable|string|max:100',
+            'hero_steps' => 'nullable|array|max:10',
+            'hero_steps.*' => 'nullable|string|max:200',
             'logo' => 'nullable|image|mimes:png,jpg,jpeg|max:2048',
             'banner' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:4096',
         ]);
@@ -161,8 +172,19 @@ class LandingSettingsController extends Controller
         }
 
         // Scalar fields
-        foreach (['school_name', 'title', 'description', 'announcement', 'contact_phone', 'contact_email', 'contact_address', 'office_hours', 'primary_color'] as $field) {
+        foreach (['school_name', 'title', 'description', 'announcement', 'contact_phone', 'contact_email', 'contact_address', 'office_hours', 'primary_color', 'hero_steps_title'] as $field) {
             $settings[$field] = $request->input($field, $settings[$field] ?? '');
+        }
+
+        // Hero "Quick Process" steps — trim, drop blanks, cap at 10
+        if (is_array($request->input('hero_steps'))) {
+            $steps = collect($request->input('hero_steps'))
+                ->map(fn ($step) => trim((string) $step))
+                ->filter()
+                ->take(10)
+                ->values()
+                ->all();
+            $settings['hero_steps'] = $steps ?: $this->defaults['hero_steps'];
         }
 
         $this->save($settings);
@@ -186,6 +208,12 @@ class LandingSettingsController extends Controller
             }
             if (empty($saved['notification_settings'])) {
                 $merged['notification_settings'] = $this->defaults['notification_settings'];
+            }
+            if (empty($saved['hero_steps']) || !is_array($saved['hero_steps'])) {
+                $merged['hero_steps'] = $this->defaults['hero_steps'];
+            }
+            if (trim((string) ($saved['hero_steps_title'] ?? '')) === '') {
+                $merged['hero_steps_title'] = $this->defaults['hero_steps_title'];
             }
             // Requirements are now managed from the database (see RequirementsController)
             unset($merged['requirements']);

@@ -418,6 +418,13 @@ const landingForm = ref({
     primary_color: '#8B0000',
     logo_path:     null,
     banner_path:   null,
+    hero_steps_title: 'Quick Process',
+    hero_steps: [
+        'Register and choose your program',
+        'Verify your email address',
+        'Fill out the application form',
+        'Wait for admission review',
+    ],
 });
 const landingLoading      = ref(false);
 const savingLanding       = ref(false);
@@ -455,6 +462,14 @@ const fetchLandingSettings = async () => {
         scalarFields.forEach(k => {
             if (res.data[k] !== undefined) landingForm.value[k] = res.data[k];
         });
+
+        // Hero "Quick Process" steps
+        if (Array.isArray(res.data.hero_steps) && res.data.hero_steps.length) {
+            landingForm.value.hero_steps = res.data.hero_steps.map(s => String(s));
+        }
+        if (typeof res.data.hero_steps_title === 'string' && res.data.hero_steps_title.trim() !== '') {
+            landingForm.value.hero_steps_title = res.data.hero_steps_title;
+        }
 
         // Application Settings loaded separately via fetchAppSettings()
 
@@ -503,6 +518,18 @@ const clearBanner = () => {
     removeBanner.value  = true;
 };
 
+const addHeroStep = () => {
+    if (landingForm.value.hero_steps.length < 10) {
+        landingForm.value.hero_steps.push('');
+    }
+};
+
+const removeHeroStep = (index) => {
+    if (landingForm.value.hero_steps.length > 1) {
+        landingForm.value.hero_steps.splice(index, 1);
+    }
+};
+
 const saveLandingSettings = async () => {
     if (!landingForm.value.school_name.trim()) {
         sweetAlert('error', 'School Name / Title is required.');
@@ -529,6 +556,8 @@ const saveLandingSettings = async () => {
         fd.append('contact_address', landingForm.value.contact_address ?? '');
         fd.append('office_hours',  landingForm.value.office_hours  ?? '');
         fd.append('primary_color', landingForm.value.primary_color ?? '#8B0000');
+        fd.append('hero_steps_title', landingForm.value.hero_steps_title ?? 'Quick Process');
+        (landingForm.value.hero_steps ?? []).forEach((step, i) => fd.append(`hero_steps[${i}]`, step ?? ''));
         if (logoFile.value)   fd.append('logo',   logoFile.value);
         if (bannerFile.value) fd.append('banner', bannerFile.value);
         if (removeLogo.value)   fd.append('remove_logo',   '1');
@@ -542,6 +571,12 @@ const saveLandingSettings = async () => {
         scalarFields.forEach(k => {
             if (saved[k] !== undefined) landingForm.value[k] = saved[k];
         });
+        if (Array.isArray(saved.hero_steps) && saved.hero_steps.length) {
+            landingForm.value.hero_steps = saved.hero_steps.map(s => String(s));
+        }
+        if (typeof saved.hero_steps_title === 'string' && saved.hero_steps_title.trim() !== '') {
+            landingForm.value.hero_steps_title = saved.hero_steps_title;
+        }
         logoFile.value    = null;
         bannerFile.value  = null;
         logoPreview.value = null;
@@ -970,6 +1005,37 @@ onMounted(async () => {
                                             class="form-control form-control-sm"
                                             placeholder="Optional — shown as a banner at the top of the page. Leave blank to hide.">
                                         <small class="text-muted">Leave blank to hide the announcement bar.</small>
+                                    </div>
+
+                                    <!-- Quick Process Steps (hero) -->
+                                    <div class="col-12">
+                                        <label class="form-label fw-medium">Quick Process Steps</label>
+                                        <input type="text" v-model="landingForm.hero_steps_title"
+                                            class="form-control form-control-sm mb-2"
+                                            placeholder="e.g., Quick Process">
+                                        <div v-for="(step, idx) in landingForm.hero_steps" :key="idx"
+                                            class="input-group input-group-sm mb-2">
+                                            <span class="input-group-text">
+                                                <i class="bi" :class="'bi-' + ((idx + 1) <= 9 ? (idx + 1) + '-circle-fill' : 'circle-fill')"></i>
+                                            </span>
+                                            <input type="text" v-model="landingForm.hero_steps[idx]"
+                                                class="form-control"
+                                                :placeholder="'Step ' + (idx + 1)">
+                                            <button type="button" class="btn btn-outline-danger"
+                                                @click="removeHeroStep(idx)"
+                                                :disabled="landingForm.hero_steps.length <= 1"
+                                                title="Remove step">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            @click="addHeroStep"
+                                            :disabled="landingForm.hero_steps.length >= 10">
+                                            <i class="bi bi-plus-lg me-1"></i>Add Step
+                                        </button>
+                                        <div><small class="text-muted">
+                                            Shown in the hero section of the landing page. 1–10 steps; blank entries are ignored.
+                                        </small></div>
                                     </div>
 
                                     <!-- Contact Phone -->
