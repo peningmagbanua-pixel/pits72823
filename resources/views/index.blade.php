@@ -205,9 +205,31 @@
         }
         footer a:hover { opacity: .8; }
 
+        /* ── Responsive navbar: logo, title and hamburger share one row ── */
+        @media (max-width: 991.98px) {
+            .navbar-brand {
+                flex: 1 1 auto;
+                min-width: 0;
+                font-size: .95rem;
+                padding-right: .5rem;
+            }
+            .navbar-brand span {
+                min-width: 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .navbar-toggler {
+                flex: 0 0 auto;
+                margin-left: auto;
+                padding: .4rem .6rem;
+            }
+            .logo-img { height: 34px; }
+        }
+
         /* ── Responsive hero logo ── */
         @media (max-width: 768px) {
-            .hero-section { padding: 90px 0 60px; min-height: auto; }
+            .hero-section { padding: 96px 0 60px; min-height: auto; }
             .hero-logo-col { display: none; }
         }
 
