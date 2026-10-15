@@ -46,6 +46,14 @@ class GoogleController extends Controller
                         ->with('error', 'Your account is not yet activated. Please wait for admin approval.');
                 }
 
+                // Block repeat logins while the password change is still pending.
+                // last_login_at is null only before the very first login, which is
+                // the one session in which the applicant can change the password.
+                if ($applicant->must_change_password && $applicant->last_login_at !== null) {
+                    return redirect()->route('applicant.login')
+                        ->with('error', 'You must change your password before logging in. Please contact the administrator for assistance.');
+                }
+
                 Auth::guard('applicant')->login($applicant);
 
                 $applicant->update([
