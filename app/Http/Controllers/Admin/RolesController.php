@@ -9,11 +9,12 @@ use App\Models\Admin\Role;
 use App\Http\Resources\Admin\RolesResource;
 use App\Traits\AuditLogsTrait;
 use App\Traits\ConstantsTrait;
+use App\Traits\UserRolesTrait;
 use App\Enums\ActionType;
 
 class RolesController extends Controller
 {
-    use AuditLogsTrait, ConstantsTrait;
+    use AuditLogsTrait, ConstantsTrait, UserRolesTrait;
 
     public function index()
     {
@@ -32,6 +33,7 @@ class RolesController extends Controller
 
         $roles = Role::search(trim($search))
             ->when(request('deleted') == '1', fn ($query) => $query->onlyTrashed())
+            ->when(! $this->checkHasRoleSystemAdministrator(), fn ($query) => $query->whereNotIn('name', [$this->SYSTEM_ADMINISTRATOR, $this->COORDINATOR]))
             ->orderBy($sort_field, $sort_order)
             ->paginate($paginate);
 
@@ -77,6 +79,12 @@ class RolesController extends Controller
         if ($role->name === $this->SYSTEM_ADMINISTRATOR) {
             return response()->json([
                 'message' => 'Cannot update System Administrator role!',
+            ], 403);
+        }
+
+        if (! $this->checkHasRoleSystemAdministrator() && $role->name === $this->COORDINATOR) {
+            return response()->json([
+                'message' => 'You can only edit Staff roles.',
             ], 403);
         }
 
@@ -166,26 +174,59 @@ class RolesController extends Controller
 
     public function list()
     {
-        $roles = Role::where('name', '!=', $this->SYSTEM_ADMINISTRATOR)->get();
-        return $roles;
+        $roles = Role::where('name', '!=', $this->SYSTEM_ADMINISTRATOR);
+
+        if (! $this->checkHasRoleSystemAdministrator()) {
+            $roles->where('name', '!=', $this->COORDINATOR);
+        }
+
+        return $roles->get();
     }
 
     public function allRoles()
     {
-        $roles = Role::orderBy('name', 'ASC')->get();
-        return $roles;
+        $roles = Role::orderBy('name', 'ASC');
+
+        // Non-admins (e.g. Coordinators creating accounts) may not assign
+        // privileged roles, so they are never offered here.
+        if (! $this->checkHasRoleSystemAdministrator()) {
+            $roles->whereNotIn('name', [$this->SYSTEM_ADMINISTRATOR, $this->COORDINATOR]);
+        }
+
+        return $roles->get();
     }
 
     public function getRoleUsers($id)
     {
-        $role = Role::with(['users' => function($query) {
+        $is_admin = $this->checkHasRoleSystemAdministrator();
+
+        $allowed = $is_admin ? null : $this->callLoggedUser()->programCodes();
+
+        $role = Role::with(['users' => function ($query) use ($allowed) {
             $query->orderBy('firstname', 'asc');
+
+            if ($allowed !== null) {
+                if (empty($allowed)) {
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $query
+                        ->whereHas('program_assignments', fn ($q) => $q->whereIn('program', $allowed))
+                        ->whereDoesntHave('program_assignments', fn ($q) => $q->whereNotIn('program', $allowed))
+                        ->whereDoesntHave('roles', fn ($q) => $q->whereIn('name', [$this->SYSTEM_ADMINISTRATOR, $this->COORDINATOR]));
+                }
+            }
         }])->where('id', $id)->first();
 
         if (!$role) {
             return response()->json([
                 'message' => 'Role not found!',
             ], 404);
+        }
+
+        if (! $is_admin && in_array($role->name, [$this->SYSTEM_ADMINISTRATOR, $this->COORDINATOR], true)) {
+            return response()->json([
+                'message' => 'You can only view Staff roles.',
+            ], 403);
         }
 
         $users = $role->users->map(function ($user) {
@@ -204,7 +245,9 @@ class RolesController extends Controller
     }
     public function getPermissionMatrix()
     {
-        $roles = Role::with('permissions')->orderBy('name', 'asc')->get();
+        $roles = Role::with('permissions')
+            ->when(! $this->checkHasRoleSystemAdministrator(), fn ($query) => $query->whereNotIn('name', [$this->SYSTEM_ADMINISTRATOR, $this->COORDINATOR]))
+            ->orderBy('name', 'asc')->get();
 
         $permissionTitles = PermissionTitle::with(['permissions' => function ($query) {
             $query->orderBy('name', 'asc'); 

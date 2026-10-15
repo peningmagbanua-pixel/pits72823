@@ -222,7 +222,14 @@ class ApplicantsController extends Controller
                 ['application_status' => $newStatus, 'rejection_reason' => $rejectionReason]
             );
 
-            if ($schedule) {
+            // Resetting to pending returns the application for review, so the
+            // exam assignment no longer applies and the slot is released.
+            if ($newStatus === 'pending') {
+                $applicant->update([
+                    'schedule_id' => null,
+                    'exam_status' => null,
+                ]);
+            } elseif ($schedule) {
                 $applicant->update([
                     'schedule_id' => $schedule->id,
                     'exam_status' => 'scheduled',

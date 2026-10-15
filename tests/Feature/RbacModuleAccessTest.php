@@ -97,7 +97,7 @@ class RbacModuleAccessTest extends TestCase
             ->assertStatus(403);
     }
 
-    public function test_group_browse_permission_does_not_grant_child_module_write_actions(): void
+    public function test_group_browse_permission_does_not_grant_child_module_pages_or_writes(): void
     {
         $user = $this->makeUser(['browse academic-setup']);
 
@@ -110,6 +110,7 @@ class RbacModuleAccessTest extends TestCase
             ->assertStatus(200)
             ->json();
 
+        $this->assertFalse($permissions['browse']);
         $this->assertFalse($permissions['create']);
         $this->assertFalse($permissions['update']);
         $this->assertFalse($permissions['delete']);
@@ -270,12 +271,24 @@ class RbacModuleAccessTest extends TestCase
             ->assertStatus(200)
             ->json('view');
 
-        $this->assertTrue($view['academic_setup']);
-        $this->assertTrue($view['school_years']);
+        // The section title alone no longer opens the sidebar menu.
+        $this->assertFalse($view['academic_setup']);
+        $this->assertFalse($view['school_years']);
+        $this->assertFalse($view['programs']);
         $this->assertFalse($view['dashboard']);
         $this->assertFalse($view['users']);
         $this->assertFalse($view['system_management']);
         $this->assertFalse($view['system_administrator']);
+
+        // Child grants light up the child page and its section header.
+        $childView = $this->actingAs($this->makeUser(['browse school-years']))
+            ->getJson('/api/profile')
+            ->assertStatus(200)
+            ->json('view');
+
+        $this->assertTrue($childView['academic_setup']);
+        $this->assertTrue($childView['school_years']);
+        $this->assertFalse($childView['programs']);
 
         $adminView = $this->actingAs($this->makeSystemAdministrator())
             ->getJson('/api/profile')
@@ -287,6 +300,47 @@ class RbacModuleAccessTest extends TestCase
         $this->assertTrue($adminView['online_application']);
         $this->assertTrue($adminView['system_management']);
         $this->assertTrue($adminView['system_administrator']);
+    }
+
+    public function test_sidebar_sections_hide_when_no_child_page_is_accessible(): void
+    {
+        // Admissions section stays visible for an exam-scheduling-only user,
+        // even without the other Admissions child pages.
+        $examOnlyView = $this->actingAs($this->makeUser(['browse exam-scheduling']))
+            ->getJson('/api/profile')
+            ->assertStatus(200)
+            ->json('view');
+
+        $this->assertTrue($examOnlyView['admissions']);
+        $this->assertTrue($examOnlyView['exam_scheduling']);
+        $this->assertFalse($examOnlyView['applicant_accounts']);
+        $this->assertFalse($examOnlyView['applications']);
+
+        // A section title with no child pages opens no sidebar section.
+        $sectionOnlyView = $this->actingAs($this->makeUser([
+            'browse academic-setup',
+            'browse system-management',
+        ]))
+            ->getJson('/api/profile')
+            ->assertStatus(200)
+            ->json('view');
+
+        $this->assertFalse($sectionOnlyView['admissions']);
+        $this->assertFalse($sectionOnlyView['academic_setup']);
+        $this->assertFalse($sectionOnlyView['system_management']);
+        $this->assertFalse($sectionOnlyView['reports_monitoring']);
+
+        // One child page is enough to open its parent menu and section.
+        $settingsOnlyView = $this->actingAs($this->makeUser(['browse settings']))
+            ->getJson('/api/profile')
+            ->assertStatus(200)
+            ->json('view');
+
+        $this->assertTrue($settingsOnlyView['system_management']);
+        $this->assertTrue($settingsOnlyView['settings']);
+        $this->assertFalse($settingsOnlyView['users']);
+        $this->assertFalse($settingsOnlyView['roles']);
+        $this->assertFalse($settingsOnlyView['permission_titles']);
     }
 
     public function test_audit_logs_browse_shows_only_own_logs_without_details(): void

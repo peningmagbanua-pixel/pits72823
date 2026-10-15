@@ -22,5 +22,10 @@ trait UserRolesTrait
     public function checkHasRoleEncoder()
     {
         return Auth::guard('web')->user()->hasRole([$this->ENCODER]);
-    }   
+    }
+
+    public function checkHasRoleCoordinator()
+    {
+        return Auth::guard('web')->user()->hasRole([$this->COORDINATOR]);
+    }
 }

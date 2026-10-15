@@ -234,14 +234,17 @@ Route::middleware(['auth:web', 'session-timeout:web', 'must-change-password:web'
         Route::delete('/users/{id}', [Admin\UsersController::class, 'delete'])->middleware('permission:delete users');
         Route::post('/users/{id}/restore', [Admin\UsersController::class, 'restore'])->middleware('permission:delete users');
 
+        // Permission Titles stay System Administrator only. Roles are editable by
+        // Coordinators but limited to non-privileged (Staff) roles in the
+        // controllers; create/delete/restore remain System Administrator only.
         Route::get('/roles', [Admin\RolesController::class, 'index'])->middleware('permission:browse roles|browse system-management');
         Route::get('/list/roles', [Admin\RolesController::class, 'list'])->middleware('permission:browse users|browse system-management');
         Route::get('/all/roles', [Admin\RolesController::class, 'allRoles'])->middleware('permission:browse users|browse system-management');
         Route::get('/roles/permission-matrix', [Admin\RolesController::class, 'getPermissionMatrix'])->middleware('permission:browse roles|browse system-management');
-        Route::post('/roles', [Admin\RolesController::class, 'store'])->middleware('permission:create roles');
+        Route::post('/roles', [Admin\RolesController::class, 'store'])->middleware(['permission:create roles', 'role:System Administrator']);
         Route::put('/roles/{id}', [Admin\RolesController::class, 'update'])->middleware('permission:update roles');
-        Route::delete('/roles/{id}', [Admin\RolesController::class, 'delete'])->middleware('permission:delete roles');
-        Route::post('/roles/{id}/restore', [Admin\RolesController::class, 'restore'])->middleware('permission:delete roles');
+        Route::delete('/roles/{id}', [Admin\RolesController::class, 'delete'])->middleware(['permission:delete roles', 'role:System Administrator']);
+        Route::post('/roles/{id}/restore', [Admin\RolesController::class, 'restore'])->middleware(['permission:delete roles', 'role:System Administrator']);
         Route::get('/roles/{id}/users', [Admin\RolesController::class, 'getRoleUsers'])->middleware('permission:browse roles|browse system-management');
 
         Route::get('/roles/{id}/permissions', [Admin\PermissionsController::class, 'getRolePermissions'])->middleware('permission:browse roles|browse system-management');
@@ -249,17 +252,17 @@ Route::middleware(['auth:web', 'session-timeout:web', 'must-change-password:web'
         Route::get('/check/{category}/permissions', [Admin\PermissionsController::class, 'checkPermissions']);
 
         Route::get('/permission-titles', [Admin\PermissionTitlesController::class, 'index'])->middleware('permission:browse permission-titles|browse system-management');
-        Route::post('/permission-titles', [Admin\PermissionTitlesController::class, 'store'])->middleware('permission:create permission-titles');
-        Route::put('/permission-titles/{id}', [Admin\PermissionTitlesController::class, 'update'])->middleware('permission:update permission-titles');
-        Route::delete('/permission-titles/{id}', [Admin\PermissionTitlesController::class, 'delete'])->middleware('permission:delete permission-titles');
-        Route::post('/permission-titles/{id}/restore', [Admin\PermissionTitlesController::class, 'restore'])->middleware('permission:delete permission-titles');
+        Route::post('/permission-titles', [Admin\PermissionTitlesController::class, 'store'])->middleware(['permission:create permission-titles', 'role:System Administrator']);
+        Route::put('/permission-titles/{id}', [Admin\PermissionTitlesController::class, 'update'])->middleware(['permission:update permission-titles', 'role:System Administrator']);
+        Route::delete('/permission-titles/{id}', [Admin\PermissionTitlesController::class, 'delete'])->middleware(['permission:delete permission-titles', 'role:System Administrator']);
+        Route::post('/permission-titles/{id}/restore', [Admin\PermissionTitlesController::class, 'restore'])->middleware(['permission:delete permission-titles', 'role:System Administrator']);
 
-        // Landing Page Settings
-        Route::get('/landing-settings', [Admin\LandingSettingsController::class, 'index'])->middleware('permission:browse settings|browse system-management');
-        Route::get('/landing-settings/app-settings', [Admin\LandingSettingsController::class, 'getAppSettings'])->middleware('permission:browse settings|browse system-management');
-        Route::post('/landing-settings', [Admin\LandingSettingsController::class, 'update'])->middleware('permission:update settings');
-        Route::post('/landing-settings/app-settings', [Admin\LandingSettingsController::class, 'updateAppSettings'])->middleware('permission:update settings');
-        Route::post('/landing-settings/notifications', [Admin\LandingSettingsController::class, 'updateNotifications'])->middleware('permission:update settings');
+        // Landing Page Settings (System Administrator only)
+        Route::get('/landing-settings', [Admin\LandingSettingsController::class, 'index'])->middleware(['permission:browse settings|browse system-management', 'role:System Administrator']);
+        Route::get('/landing-settings/app-settings', [Admin\LandingSettingsController::class, 'getAppSettings'])->middleware(['permission:browse settings|browse system-management', 'role:System Administrator']);
+        Route::post('/landing-settings', [Admin\LandingSettingsController::class, 'update'])->middleware(['permission:update settings', 'role:System Administrator']);
+        Route::post('/landing-settings/app-settings', [Admin\LandingSettingsController::class, 'updateAppSettings'])->middleware(['permission:update settings', 'role:System Administrator']);
+        Route::post('/landing-settings/notifications', [Admin\LandingSettingsController::class, 'updateNotifications'])->middleware(['permission:update settings', 'role:System Administrator']);
 
         // Applicant Requirements (Settings)
         Route::get('/requirements', [Admin\RequirementsController::class, 'index'])->middleware('permission:browse settings|browse system-management');
@@ -271,9 +274,9 @@ Route::middleware(['auth:web', 'session-timeout:web', 'must-change-password:web'
         Route::get('/application-period', [Admin\ApplicationPeriodController::class, 'show'])->middleware('permission:browse online-application|browse system-management');
         Route::post('/application-period', [Admin\ApplicationPeriodController::class, 'update'])->middleware('permission:update online-application');
 
-        // Session Timeout Settings
-        Route::get('/session-timeout-settings', [Admin\SessionTimeoutSettingsController::class, 'show'])->middleware('permission:browse settings|browse system-management');
-        Route::post('/session-timeout-settings', [Admin\SessionTimeoutSettingsController::class, 'update'])->middleware('permission:update settings');
+        // Session Timeout Settings (System Administrator only)
+        Route::get('/session-timeout-settings', [Admin\SessionTimeoutSettingsController::class, 'show'])->middleware(['permission:browse settings|browse system-management', 'role:System Administrator']);
+        Route::post('/session-timeout-settings', [Admin\SessionTimeoutSettingsController::class, 'update'])->middleware(['permission:update settings', 'role:System Administrator']);
 
         Route::get('/profile', [Admin\ProfileController::class, 'profile']);
         Route::get('/profile/details', [Admin\ProfileController::class, 'getProfile']);

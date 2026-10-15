@@ -15,6 +15,7 @@ export const STATUS = {
 export const ROLE = {
     SYSTEM_ADMINISTRATOR: 'System Administrator',
     ENCODER: 'Encoder',
+    COORDINATOR: 'Coordinator',
 };
 
 export const APP = {

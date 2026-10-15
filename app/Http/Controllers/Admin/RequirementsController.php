@@ -7,16 +7,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Admin\RequirementsResource;
 use App\Models\Admin\Requirement;
 use App\Traits\AuditLogsTrait;
+use App\Traits\ProgramScopeTrait;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class RequirementsController extends Controller
 {
-    use AuditLogsTrait;
+    use AuditLogsTrait, ProgramScopeTrait;
 
     public function index()
     {
         $requirements = Requirement::with(['programs' => fn ($programs) => $programs->withTrashed()])
+            ->when(! $this->checkHasRoleSystemAdministrator(), fn ($query) => $this->scopeToCallerPrograms($query))
             ->orderBy('sort_order', 'asc')
             ->orderBy('name', 'asc')
             ->get();
@@ -42,6 +44,8 @@ class RequirementsController extends Controller
             'is_active' => 'required|boolean',
             'sort_order' => 'nullable|integer|min:0',
         ]);
+
+        $this->assertRequirementProgramsAllowed($validated['program_ids'] ?? []);
 
         $requirement = Requirement::create([
             'name' => $validated['name'],
@@ -85,6 +89,14 @@ class RequirementsController extends Controller
             'sort_order' => 'nullable|integer|min:0',
         ]);
 
+        // The requirement may only be touched when its current assignment and
+        // the requested one both sit inside the caller's own programs.
+        $this->assertRequirementProgramsAllowed($requirement->programs()->withTrashed()->get()->pluck('id')->all());
+
+        if (array_key_exists('program_ids', $validated)) {
+            $this->assertRequirementProgramsAllowed($validated['program_ids']);
+        }
+
         $old_values = $requirement->getOriginal();
 
         $requirement->update([
@@ -113,6 +125,8 @@ class RequirementsController extends Controller
     {
         $requirement = Requirement::findOrFail($id);
 
+        $this->assertRequirementProgramsAllowed($requirement->programs()->withTrashed()->get()->pluck('id')->all());
+
         $old_values = $requirement->getOriginal();
 
         if ($requirement->delete()) {
@@ -137,5 +151,47 @@ class RequirementsController extends Controller
     private function programIdRule(): array
     {
         return ['uuid', Rule::exists('programs', 'id')->whereNull('deleted_at')];
+    }
+
+    /**
+     * Keep requirement writes inside the caller's own programs.
+     * Empty assignments ("All Programs") would affect the other program too,
+     * so they are System Administrator territory.
+     *
+     * @param  array<int, string>  $program_ids
+     */
+    private function assertRequirementProgramsAllowed(array $program_ids): void
+    {
+        if ($this->checkHasRoleSystemAdministrator()) {
+            return;
+        }
+
+        if (empty($program_ids)) {
+            abort(403, 'This requirement must be assigned to your programs.');
+        }
+
+        foreach ($program_ids as $program_id) {
+            $this->assertProgramAllowed($program_id);
+        }
+    }
+
+    /**
+     * Only requirements relevant to the caller's programs are listed;
+     * unassigned ("All Programs") requirements remain visible read-only.
+     */
+    private function scopeToCallerPrograms($query)
+    {
+        $programs = $this->scopedPrograms();
+
+        if (empty($programs)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function ($query) use ($programs) {
+            $query->whereDoesntHave('programs')
+                ->orWhereHas('programs', fn ($programs_query) => $programs_query
+                    ->withTrashed()
+                    ->whereIn('initials', $programs));
+        });
     }
 }

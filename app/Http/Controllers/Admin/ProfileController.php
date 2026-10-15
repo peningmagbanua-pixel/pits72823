@@ -29,14 +29,15 @@ class ProfileController extends Controller
         $view = [
             'dashboard' => $auth_user->can('browse dashboard'),
 
-            // Admissions
+            // Admissions (section visible only when a child page is accessible)
             'applicant_accounts' => $auth_user->can('browse applicant-accounts'),
             'applications' => $auth_user->can('browse applications'),
             'applicants' => $auth_user->can('read applicants'),
 
             'admissions' =>
                 $auth_user->can('browse applicant-accounts') ||
-                $auth_user->can('browse applications'),
+                $auth_user->can('browse applications') ||
+                $auth_user->can('browse exam-scheduling'),
 
             // Exam Scheduling
             'exam_scheduling' => $auth_user->can('browse exam-scheduling'),
@@ -50,7 +51,7 @@ class ProfileController extends Controller
             // Academic Setup
             'school_years' => $auth_user->can('browse school-years'),
             'programs' => $auth_user->can('browse programs'),
-            'academic_setup' => $auth_user->can('browse academic-setup') ||
+            'academic_setup' =>
                 $auth_user->can('browse school-years') ||
                 $auth_user->can('browse programs'),
 
@@ -62,14 +63,14 @@ class ProfileController extends Controller
             'settings' => $auth_user->can('browse settings') ||
                 $auth_user->can('browse online-application'),
 
-            'system_management' => $auth_user->can('browse system-management') ||
-                $auth_user->can('browse users') ||
+            'system_management' => $auth_user->can('browse users') ||
                 $auth_user->can('browse roles') ||
                 $auth_user->can('browse permission-titles') ||
                 $auth_user->can('browse settings') ||
                 $auth_user->can('browse online-application'),
 
             'system_administrator' => $auth_user->hasRole([$this->SYSTEM_ADMINISTRATOR]),
+            'coordinator' => $auth_user->hasRole([$this->COORDINATOR]),
         ];
 
         return [

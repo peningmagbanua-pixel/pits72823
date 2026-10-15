@@ -25,17 +25,31 @@ class PermissionsController extends Controller
             ], 404);
         }
 
+        if (! $this->checkHasRoleSystemAdministrator() && in_array($role->name, [$this->SYSTEM_ADMINISTRATOR, $this->COORDINATOR], true)) {
+            return response()->json([
+                'message' => 'You can only edit Staff roles.',
+            ], 403);
+        }
+
         $permission_titles = PermissionTitle::with(['permissions' => function ($query) {
             $query->orderBy('name');
         }])->get();
         
         $role_permission_ids = $role->permissions->pluck('id')->toArray();
 
+        // Non-admins may only be offered the permissions they hold themselves,
+        // so editing a Staff role can never mint a capability they lack.
+        $grantable = $this->grantablePermissionNames();
+
         $grouped_permissions = [];
         foreach ($permission_titles as $title) {
+            $granted_permissions = $grantable === null
+                ? $title->permissions
+                : $title->permissions->filter(fn ($permission) => $grantable->contains($permission->name));
+
             $grouped_permissions[] = [
                 'title' => $title->name,
-                'permissions' => $title->permissions->map(function ($permission) use ($role_permission_ids) {
+                'permissions' => $granted_permissions->map(function ($permission) use ($role_permission_ids) {
                     return [
                         'id' => $permission->id,
                         'name' => $permission->name,
@@ -64,10 +78,25 @@ class PermissionsController extends Controller
             ], 404);
         }
 
+        if (! $this->checkHasRoleSystemAdministrator() && in_array($role->name, [$this->SYSTEM_ADMINISTRATOR, $this->COORDINATOR], true)) {
+            abort(403, 'You can only edit Staff roles.');
+        }
+
         $validated = $request->validate([
             'permissions' => 'nullable|array',
             'permissions.*' => 'exists:permissions,id',
         ]);
+
+        $grantable = $this->grantablePermissionNames();
+
+        if ($grantable !== null) {
+            $requested_names = Permission::whereIn('id', $validated['permissions'] ?? [])->pluck('name');
+            $foreign = $requested_names->diff($grantable);
+
+            if ($foreign->isNotEmpty()) {
+                abort(403, 'You cannot grant permissions you do not have.');
+            }
+        }
 
         $old_values = $role->permissions->pluck('id')->toArray();
 
@@ -102,5 +131,21 @@ class PermissionsController extends Controller
             'create' => $auth_user->can("create $lowercase_category"),
             'delete' => $auth_user->can("delete $lowercase_category"),
         ];
+    }
+
+    /**
+     * The permission names the caller is allowed to delegate, or null when the
+     * caller is a System Administrator (unrestricted).
+     */
+    private function grantablePermissionNames()
+    {
+        if ($this->checkHasRoleSystemAdministrator()) {
+            return null;
+        }
+
+        return $this->callLoggedUser()
+            ->roles->flatMap(fn ($role) => $role->permissions->pluck('name'))
+            ->unique()
+            ->values();
     }
 }

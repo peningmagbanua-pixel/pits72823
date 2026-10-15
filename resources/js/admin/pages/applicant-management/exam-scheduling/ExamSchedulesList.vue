@@ -88,6 +88,8 @@ const spictProgram = computed(() => programs.value.find(p => p.initials === 'SPI
 const steProgramId = computed(() => steProgram.value?.id);
 const spictProgramId = computed(() => spictProgram.value?.id);
 
+const formPrograms = computed(() => programs.value.filter(p => canAccess(p.initials)));
+
 const fetchPrograms = async () => {
     try {
         const response = await axios.get("/api/programs", {
@@ -470,7 +472,7 @@ const resetForm = async () => {
     scheduleForm.value = {
         id: null,
         school_year_id: activeSchoolYear.value?.id ?? '',
-        program_id: programs.value[0]?.id ?? '',
+        program_id: formPrograms.value[0]?.id ?? '',
         date: "",
         time_slot: "",
         room: "",
@@ -722,7 +724,7 @@ onMounted(async () => {
                         <div class="mb-3">
                             <label class="form-label required">Program</label>
                             <select v-model="scheduleForm.program_id" class="form-select form-select-sm" required>
-                                <option v-for="prog in programs" :key="prog.id" :value="prog.id">
+                                <option v-for="prog in formPrograms" :key="prog.id" :value="prog.id">
                                     {{ prog.initials }}
                                 </option>
                             </select>

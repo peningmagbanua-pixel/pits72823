@@ -191,8 +191,17 @@ class ExamScheduleController extends Controller
         $description = 'Deleted exam schedule (' . $examSchedule->program?->initials . ', ' . $examSchedule->date . ', ' . $examSchedule->time_slot . ')';
         $old_values = $examSchedule->getOriginal();
 
-        // Soft delete: hidden from the scheduling list, still shown in Reports
-        $examSchedule->delete();
+        // Soft delete: hidden from the scheduling list, still shown in Reports.
+        // Assigned applicants are released first so they are no longer marked
+        // as scheduled and become eligible for auto/manual assignment again.
+        DB::transaction(function () use ($examSchedule) {
+            $examSchedule->applicants()->update([
+                'schedule_id' => null,
+                'exam_status' => null,
+            ]);
+
+            $examSchedule->delete();
+        });
 
         $this->setAuditLog($action, $module, $description, $old_values, null);
         $this->logAdminActivity('deleted_exam_schedule', 'Deleted exam schedule (' . $examSchedule->program?->initials . ', ' . $examSchedule->date . ', ' . $examSchedule->time_slot . ').');

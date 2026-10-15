@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             UsersTableSeeder::class,
             PermissionTitlesSeeder::class,
             EncoderPermissionsSeeder::class,
+            CoordinatorPermissionsSeeder::class,
             FaqsTableSeeder::class,
         ]);
     }

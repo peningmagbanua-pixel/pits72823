@@ -2,6 +2,12 @@
 import { ref, computed, onMounted } from 'vue';
 import Swal from 'sweetalert2';
 import { sweetAlert, processingAlert } from '../../../../sweetalert';
+import { useAuthUserStore } from '../../../stores/AuthUserStore';
+
+const authUserStore = useAuthUserStore();
+
+const isSystemAdministrator = computed(() => !!authUserStore.user?.view?.system_administrator);
+const allowedPrograms = computed(() => authUserStore.user?.programs || []);
 
 const permissions = ref([]);
 const onlineApplicationPermissions = ref({});
@@ -179,6 +185,22 @@ const requirements = ref([]);
 const requirementsLoading = ref(true);
 const programs = ref([]);
 
+// Coordinators may only assign / manage programs inside their own scope.
+const assignablePrograms = computed(() =>
+    isSystemAdministrator.value
+        ? programs.value
+        : programs.value.filter((prog) => allowedPrograms.value.includes(prog.initials))
+);
+
+// A requirement is manageable when it belongs entirely to the caller's programs.
+// "All Programs" requirements are System Administrator territory.
+const canManageRequirement = (req) => {
+    if (isSystemAdministrator.value) return true;
+    return Array.isArray(req.programs)
+        && req.programs.length > 0
+        && req.programs.every((prog) => allowedPrograms.value.includes(prog.initials));
+};
+
 const fetchPrograms = async () => {
     try {
         const res = await axios.get('/api/programs', { params: { paginate: 100 } });
@@ -223,6 +245,10 @@ const openAddReqModal = () => {
 const submitAddRequirement = async () => {
     if (!newReq.value.name.trim()) {
         addReqError.value = 'Requirement name is required.';
+        return;
+    }
+    if (!isSystemAdministrator.value && newReq.value.program_ids.length === 0) {
+        addReqError.value = 'You must assign the requirement to at least one of your programs.';
         return;
     }
     processingAlert('.btn');
@@ -282,6 +308,10 @@ const openEditReqModal = (req) => {
 const submitEditRequirement = async () => {
     if (!editReqForm.value.name.trim()) {
         editReqError.value = 'Requirement name is required.';
+        return;
+    }
+    if (!isSystemAdministrator.value && editReqForm.value.program_ids.length === 0) {
+        editReqError.value = 'You must assign the requirement to at least one of your programs.';
         return;
     }
     processingAlert('.btn');
@@ -624,14 +654,17 @@ const saveLandingSettings = async () => {
 };
 
 onMounted(async () => {
+    await authUserStore.getAuthUser();
     await checkPermissions();
     await checkOnlineApplicationPermissions();
     if (permissions.value.browse) {
-        fetchAppSettings();
-        fetchLandingSettings();
+        if (isSystemAdministrator.value) {
+            fetchAppSettings();
+            fetchLandingSettings();
+            fetchSessionTimeout();
+        }
         fetchRequirements();
         fetchPrograms();
-        fetchSessionTimeout();
     }
     if (onlineApplicationPermissions.value.browse) {
         fetchApplicationPeriod();
@@ -660,8 +693,8 @@ onMounted(async () => {
     <div class="app-content">
         <div class="container-fluid">
 
-            <!-- ── Filter buttons ──────────────────────────────────── -->
-            <div v-if="permissions.browse" class="mb-4">
+            <!-- ── Filter buttons (landing page sections, System Administrator only) ── -->
+            <div v-if="permissions.browse && isSystemAdministrator" class="mb-4">
                 <div class="d-flex flex-wrap gap-2">
                     <button v-for="f in SETTINGS_FILTERS" :key="f.id" type="button"
                         class="btn btn-sm rounded-pill px-3 py-2"
@@ -674,8 +707,8 @@ onMounted(async () => {
 
             <div class="row g-4">
 
-                <!-- ── 1. Application Settings ──────────────────────────── -->
-                <div v-if="permissions.browse && activeFilter === 'all'" class="col-12">
+                <!-- ── 1. Application Settings (System Administrator only) ── -->
+                <div v-if="permissions.browse && isSystemAdministrator && activeFilter === 'all'" class="col-12">
                     <div class="card shadow-sm border-0" style="font-size: 13px;">
                         <div class="card-header bg-white py-3 border-bottom">
                             <h6 class="mb-0 fw-bold">
@@ -875,17 +908,17 @@ onMounted(async () => {
                                                     title="View">
                                                     <i class="bi bi-eye-fill"></i>
                                                 </button>
-                                                <button v-if="permissions.update" class="btn btn-secondary btn-sm me-1"
+                                                <button v-if="permissions.update && canManageRequirement(req)" class="btn btn-secondary btn-sm me-1"
                                                     @click="openEditReqModal(req)">
                                                     <i class="bi bi-pencil-square"></i>
                                                 </button>
-                                                <button v-if="permissions.update" class="btn btn-sm me-1"
+                                                <button v-if="permissions.update && canManageRequirement(req)" class="btn btn-sm me-1"
                                                     :class="req.is_active ? 'btn-warning' : 'btn-success'"
                                                     @click="toggleRequirementStatus(req)"
                                                     :title="req.is_active ? 'Deactivate' : 'Activate'">
                                                     <i class="bi" :class="req.is_active ? 'bi-eye-slash-fill' : 'bi-eye-fill'"></i>
                                                 </button>
-                                                <button v-if="permissions.delete" class="btn btn-danger btn-sm"
+                                                <button v-if="permissions.delete && canManageRequirement(req)" class="btn btn-danger btn-sm"
                                                     @click="deleteRequirement(req.id)">
                                                     <i class="bi bi-trash-fill"></i>
                                                 </button>
@@ -903,8 +936,8 @@ onMounted(async () => {
                     </div>
                 </div>
 
-                <!-- ── 4. Notifications ──────────────────────────────────── -->
-                <div v-if="permissions.browse && activeFilter === 'all'" class="col-12">
+                <!-- ── 4. Notifications (System Administrator only) ───────── -->
+                <div v-if="permissions.browse && isSystemAdministrator && activeFilter === 'all'" class="col-12">
                     <div class="card shadow-sm border-0" style="font-size: 13px;">
                         <div class="card-header bg-white py-3 border-bottom">
                             <h6 class="mb-0 fw-bold">
@@ -950,8 +983,8 @@ onMounted(async () => {
                     </div>
                 </div>
 
-                <!-- ── 5. Landing Page Settings ─────────────────────────── -->
-                <div v-if="permissions.browse" class="col-12">
+                <!-- ── 5. Landing Page Settings (System Administrator only) ── -->
+                <div v-if="permissions.browse && isSystemAdministrator" class="col-12">
                     <div class="card shadow-sm border-0" style="font-size: 13px;">
                         <div class="card-header bg-white py-3 border-bottom">
                             <h6 class="mb-0 fw-bold">
@@ -1291,8 +1324,8 @@ onMounted(async () => {
                     </div>
                 </div>
 
-                <!-- ── 6. Session Timeout Settings ───────────────────────── -->
-                <div v-if="permissions.browse && activeFilter === 'all'" class="col-12">
+                <!-- ── 6. Session Timeout Settings (System Administrator only) ── -->
+                <div v-if="permissions.browse && isSystemAdministrator && activeFilter === 'all'" class="col-12">
                     <div class="card shadow-sm border-0" style="font-size: 13px;">
                         <div class="card-header bg-white py-3 border-bottom">
                             <h6 class="mb-0 fw-bold">
@@ -1354,14 +1387,15 @@ onMounted(async () => {
                     </div>
                     <div class="form-group mb-3">
                         <label class="form-label">Program / For</label>
-                        <div class="form-check" v-for="prog in programs" :key="prog.id">
+                        <div class="form-check" v-for="prog in assignablePrograms" :key="prog.id">
                             <input class="form-check-input" type="checkbox" :value="prog.id"
                                 v-model="newReq.program_ids" :id="'new-req-program-' + prog.id">
                             <label class="form-check-label" :for="'new-req-program-' + prog.id">
                                 {{ prog.initials }} — {{ prog.name }}
                             </label>
                         </div>
-                        <small class="text-muted">No program checked = required by all programs.</small>
+                        <small v-if="isSystemAdministrator" class="text-muted">No program checked = required by all programs.</small>
+                        <small v-else class="text-muted">Select at least one of your assigned programs.</small>
                     </div>
                     <div class="row">
                         <div class="col-md-6">
@@ -1430,14 +1464,15 @@ onMounted(async () => {
                     </div>
                     <div class="form-group mb-3">
                         <label class="form-label">Program / For</label>
-                        <div class="form-check" v-for="prog in programs" :key="prog.id">
+                        <div class="form-check" v-for="prog in assignablePrograms" :key="prog.id">
                             <input class="form-check-input" type="checkbox" :value="prog.id"
                                 v-model="editReqForm.program_ids" :id="'edit-req-program-' + prog.id">
                             <label class="form-check-label" :for="'edit-req-program-' + prog.id">
                                 {{ prog.initials }} — {{ prog.name }}
                             </label>
                         </div>
-                        <small class="text-muted">No program checked = required by all programs.</small>
+                        <small v-if="isSystemAdministrator" class="text-muted">No program checked = required by all programs.</small>
+                        <small v-else class="text-muted">Select at least one of your assigned programs.</small>
                     </div>
                     <div class="row">
                         <div class="col-md-6">

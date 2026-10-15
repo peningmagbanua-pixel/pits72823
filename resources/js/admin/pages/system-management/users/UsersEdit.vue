@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Form } from 'vee-validate';
 import Swal from 'sweetalert2';
 import { sweetAlert } from '@/sweetalert.js';
@@ -14,6 +14,12 @@ const authUserStore = useAuthUserStore();
 const emit = defineEmits(['user-updated']);
 const roles = ref([]);
 const show = ref(false);
+
+// Coordinators may only assign programs they themselves manage.
+// System Administrators are assigned every program in the profile payload.
+const assignablePrograms = computed(() =>
+    PROGRAM_ACCESS.filter((program) => (authUserStore.user.programs || []).includes(program.value))
+);
 
 const hideModal = () => {
     const modalElement = document.getElementById('update-user');
@@ -138,7 +144,7 @@ const isSystemAdministrator = () => {
                         </div>
                         <div v-if="show || !authUserStore.user.view.system_administrator" class="form-group mt-3">
                             <label class="form-label">Program Assignment</label>
-                            <div v-for="program in PROGRAM_ACCESS" :key="program.value" class="form-check">
+                            <div v-for="program in assignablePrograms" :key="program.value" class="form-check">
                                 <input class="form-check-input" type="checkbox" :value="program.value" v-model="form.program_access">
                                 <label class="form-check-label">{{ program.label }}</label>
                             </div>

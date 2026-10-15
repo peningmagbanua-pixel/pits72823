@@ -19,6 +19,7 @@ use Illuminate\Validation\Rule;
 class UsersController extends Controller
 {
     use AuditLogsTrait, ConstantsTrait;
+
     public function index()
     {
         $paginate = request('paginate');
@@ -47,6 +48,7 @@ class UsersController extends Controller
             })
             ->when(request('deleted') == '1', fn ($query) => $query->onlyTrashed())
             ->search(trim($search))
+            ->when(! $this->checkHasRoleSystemAdministrator(), fn ($query) => $this->scopeToCallerPrograms($query))
             ->orderBy($sort_field, $sort_order)
             ->paginate($paginate);
 
@@ -56,9 +58,13 @@ class UsersController extends Controller
     public function list()
     {
         $users = User::orderBy('lastname')
-            ->orderBy('firstname')->get();
+            ->orderBy('firstname');
 
-        return $users;
+        if (! $this->checkHasRoleSystemAdministrator()) {
+            $this->scopeToCallerPrograms($users);
+        }
+
+        return $users->get();
     }
 
     public function store(Request $request)
@@ -75,6 +81,8 @@ class UsersController extends Controller
             'program_access' => 'nullable|array',
             'program_access.*' => 'in:SPICT,STE',
         ]);
+
+        $this->assertCoordinatorMayManage($validated);
 
         // Generate a random temporary password
         $plainPassword = Str::password(length: 12, symbols: true);
@@ -144,6 +152,21 @@ class UsersController extends Controller
             'program_access.*' => 'in:SPICT,STE',
         ]);
 
+        $this->assertCoordinatorMayManage($validated);
+
+        $target_codes = $user->programCodes();
+        if (! $this->checkHasRoleSystemAdministrator() && ! $this->userInCallerScope($user, $target_codes)) {
+            return response()->json([
+                'message' => 'You do not have access to this user account!',
+            ], 403);
+        }
+
+        if (! $this->checkHasRoleSystemAdministrator() && $this->userHasPrivilegedRole($user)) {
+            return response()->json([
+                'message' => 'You cannot modify this user account!',
+            ], 403);
+        }
+
         $old_values = $user->getOriginal();
 
         $user->update([
@@ -204,6 +227,13 @@ class UsersController extends Controller
             ], 403);
         }
 
+        if (! $this->checkHasRoleSystemAdministrator()
+            && (! $this->userInCallerScope($user, $user->programCodes()) || $this->userHasPrivilegedRole($user))) {
+            return response()->json([
+                'message' => 'You do not have access to this user account!',
+            ], 403);
+        }
+
         $action = ActionType::Deleted->value;
         $module = 'Users';
         $description = 'Deleted user ' . $user->email;
@@ -225,10 +255,17 @@ class UsersController extends Controller
     {
         $user = User::withTrashed()->findOrFail($id);
 
-        if (!$user->trashed()) {
+        if (! $user->trashed()) {
             return response()->json([
                 'message' => 'User is not deleted!',
             ], 400);
+        }
+
+        if (! $this->checkHasRoleSystemAdministrator()
+            && (! $this->userInCallerScope($user, $user->programCodes()) || $this->userHasPrivilegedRole($user))) {
+            return response()->json([
+                'message' => 'You do not have access to this user account!',
+            ], 403);
         }
 
         if ($user->email !== null && User::where('email', $user->email)->exists()) {
@@ -247,5 +284,82 @@ class UsersController extends Controller
         return response()->json([
             'message' => 'User restored successfully!',
         ]);
+    }
+
+    /**
+     * Restrict a users query to the callers own programs.
+     *
+     * A user is in scope when they hold at least one of the callers programs
+     * and none outside of them. Users without any program assignment and users
+     * with privileged roles are never visible to a Coordinator.
+     */
+    private function scopeToCallerPrograms($query)
+    {
+        $allowed = $this->callLoggedUser()->programCodes();
+
+        if (empty($allowed)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query
+            ->whereHas('program_assignments', fn ($q) => $q->whereIn('program', $allowed))
+            ->whereDoesntHave('program_assignments', fn ($q) => $q->whereNotIn('program', $allowed))
+            ->whereDoesntHave('roles', fn ($q) => $q->whereIn('name', [$this->SYSTEM_ADMINISTRATOR, $this->COORDINATOR]));
+    }
+
+    /**
+     * Coordinators may only manage accounts that live entirely inside their own
+     * programs, and never privileged (System Administrator / Coordinator) accounts.
+     */
+    private function userInCallerScope(User $user, array $codes): bool
+    {
+        $allowed = $this->callLoggedUser()->programCodes();
+
+        if (empty($codes) || empty($allowed)) {
+            return false;
+        }
+
+        return empty(array_diff($codes, $allowed));
+    }
+
+    private function userHasPrivilegedRole(User $user): bool
+    {
+        return $user->roles
+            ->contains(fn ($role) => in_array($role->name, [$this->SYSTEM_ADMINISTRATOR, $this->COORDINATOR], true));
+    }
+
+    /**
+     * Enforce the Coordinator's account-creation / update restrictions.
+     * System Administrators are unrestricted.
+     */
+    private function assertCoordinatorMayManage(array $validated): void
+    {
+        if ($this->checkHasRoleSystemAdministrator()) {
+            return;
+        }
+
+        $allowed = $this->callLoggedUser()->programCodes();
+
+        if (isset($validated['admin']) && $validated['admin'] === $this->ADMIN_YES) {
+            abort(403, 'You are not allowed to create System Administrator accounts.');
+        }
+
+        $selected_programs = array_unique($validated['program_access'] ?? []);
+
+        if (empty($selected_programs)) {
+            abort(422, 'You must assign the account to at least one of your programs.');
+        }
+
+        foreach ($selected_programs as $program) {
+            if (! in_array($program, $allowed, true)) {
+                abort(403, 'You can only assign accounts to your own programs.');
+            }
+        }
+
+        $privileged_role_ids = Role::whereIn('name', [$this->SYSTEM_ADMINISTRATOR, $this->COORDINATOR])->pluck('id')->all();
+
+        if (array_intersect($validated['roles'] ?? [], $privileged_role_ids)) {
+            abort(403, 'You are not allowed to assign the System Administrator or Coordinator role.');
+        }
     }
 }

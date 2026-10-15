@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Mail\ApplicationRejectedMail;
 use App\Mail\ApplicationResetToPendingMail;
 use App\Mail\ApplicationStatusNotificationEmail;
+use App\Models\Admin\ExamSchedule;
 use App\Models\Admin\Program;
 use App\Models\Admin\Role;
 use App\Models\Admin\SchoolYear;
@@ -163,6 +164,41 @@ class ApplicationStatusUpdateTest extends TestCase
         $fresh = $this->applicant->fresh();
         $this->assertSame('pending', $fresh->application_status);
         $this->assertNull($fresh->rejection_reason);
+
+        Mail::assertSent(ApplicationResetToPendingMail::class);
+    }
+
+    public function test_reset_to_pending_releases_the_exam_schedule(): void
+    {
+        Mail::fake();
+
+        $schedule = ExamSchedule::create([
+            'program_id' => $this->program->id,
+            'school_year_id' => $this->schoolYear->id,
+            'date' => '2026-09-01',
+            'time_slot' => '8:00 am - 10:00 am',
+            'room' => 'Room 1',
+            'capacity' => 30,
+        ]);
+
+        $this->applicant->update([
+            'application_status' => 'approved',
+            'schedule_id' => $schedule->id,
+            'exam_status' => 'scheduled',
+        ]);
+
+        $this->assertSame(1, $schedule->applicants()->count());
+
+        $this->updateStatus(['status' => 'pending'])
+            ->assertStatus(200)
+            ->assertJson(['message' => 'Application status reset to pending.']);
+
+        $fresh = $this->applicant->fresh();
+        $this->assertSame('pending', $fresh->application_status);
+        $this->assertNull($fresh->schedule_id);
+        $this->assertNull($fresh->exam_status);
+
+        $this->assertSame(0, $schedule->applicants()->count());
 
         Mail::assertSent(ApplicationResetToPendingMail::class);
     }
