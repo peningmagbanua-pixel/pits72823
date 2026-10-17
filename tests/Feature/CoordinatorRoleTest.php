@@ -410,6 +410,53 @@ class CoordinatorRoleTest extends TestCase
         $this->assertFalse($emails->contains($this->sysadmin->email));
     }
 
+    public function test_granting_applications_access_also_allows_approving_or_declining(): void
+    {
+        $encoder = Role::where('name', 'Encoder')->firstOrFail();
+
+        // A Staff role granted only access to the Applications page.
+        $encoder->permissions()->sync(
+            Permission::where('name', 'browse applications')->pluck('id')->all()
+        );
+
+        $this->actingAs($this->spictCoordinator)
+            ->putJson('/api/roles/'.$encoder->id.'/permissions', [
+                'permissions' => Permission::where('name', 'browse applications')
+                    ->pluck('id')->all(),
+            ])
+            ->assertStatus(200);
+
+        $names = $encoder->fresh()->permissions->pluck('name');
+        $this->assertTrue($names->contains('browse applications'));
+        $this->assertTrue($names->contains('update applications'));
+        $this->assertTrue($names->contains('read applicants'));
+
+        // The permissions modal reports the implied permissions as checked too,
+        // and every group serializes as a JSON array (not an object with key
+        // gaps, which crashes the modal's group.permissions.forEach).
+        $groups = collect(
+            $this->actingAs($this->spictCoordinator)
+                ->getJson('/api/roles/'.$encoder->id.'/permissions')
+                ->assertStatus(200)
+                ->json('permissions')
+        );
+
+        foreach ($groups as $group) {
+            $this->assertIsArray($group['permissions']);
+            $this->assertTrue(
+                array_is_list($group['permissions']),
+                "Permission group '{$group['title']}' must serialize as a JSON array."
+            );
+        }
+
+        $checked = $groups->flatMap(fn ($group) => collect($group['permissions']))
+            ->filter(fn ($permission) => $permission['checked'])
+            ->pluck('name');
+
+        $this->assertTrue($checked->contains('update applications'));
+        $this->assertTrue($checked->contains('read applicants'));
+    }
+
     public function test_coordinator_role_lists_hide_privileged_roles(): void
     {
         $listed = $this->actingAs($this->spictCoordinator)

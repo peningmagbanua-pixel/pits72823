@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref } from 'vue';
+import { reactive, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
 import { sweetAlert } from '@/sweetalert.js';
 import { processingAlert } from '../../../../sweetalert';
@@ -22,6 +22,23 @@ const form = reactive({
 const permissions = ref([]);
 const selected_permissions = ref([]);
 const permissionsLoading = ref(false);
+
+// Access to the Applications page implies the ability to act on them, so the
+// backend auto-grants these; keep the modal in sync so the coordinator sees it.
+const APPLICATION_IMPLIED_PERMISSIONS = ['update applications', 'read applicants'];
+
+watch(selected_permissions, () => {
+    const all = permissions.value.flatMap(group => group.permissions);
+    const browse = all.find(p => p.name === 'browse applications');
+    if (!browse || !selected_permissions.value.includes(browse.id)) return;
+
+    all.forEach(permission => {
+        if (APPLICATION_IMPLIED_PERMISSIONS.includes(permission.name)
+            && !selected_permissions.value.includes(permission.id)) {
+            selected_permissions.value.push(permission.id);
+        }
+    });
+}, { deep: true });
 
 const getRolePermissions = (role) => {
     form.id = role.id;

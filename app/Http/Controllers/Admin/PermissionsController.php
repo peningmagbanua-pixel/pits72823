@@ -10,6 +10,7 @@ use App\Models\Admin\PermissionTitle;
 use App\Traits\AuditLogsTrait;
 use App\Traits\ConstantsTrait;
 use App\Enums\ActionType;
+use Illuminate\Support\Collection;
 
 class PermissionsController extends Controller
 {
@@ -35,7 +36,9 @@ class PermissionsController extends Controller
             $query->orderBy('name');
         }])->get();
         
-        $role_permission_ids = $role->permissions->pluck('id')->toArray();
+        $role_permission_ids = $this->withImpliedApplicationPermissions(
+            collect($role->permissions->pluck('id')->toArray())
+        );
 
         // Non-admins may only be offered the permissions they hold themselves,
         // so editing a Staff role can never mint a capability they lack.
@@ -49,13 +52,16 @@ class PermissionsController extends Controller
 
             $grouped_permissions[] = [
                 'title' => $title->name,
+                // values() re-indexes after filter() so the group serializes as a
+                // JSON array; with key gaps json_encode emits an object and the
+                // permissions modal crashes on group.permissions.forEach.
                 'permissions' => $granted_permissions->map(function ($permission) use ($role_permission_ids) {
                     return [
                         'id' => $permission->id,
                         'name' => $permission->name,
-                        'checked' => in_array($permission->id, $role_permission_ids),
+                        'checked' => in_array($permission->id, $role_permission_ids->all()),
                     ];
-                }),
+                })->values(),
             ];
         }
 
@@ -87,10 +93,14 @@ class PermissionsController extends Controller
             'permissions.*' => 'exists:permissions,id',
         ]);
 
+        $requested = $this->withImpliedApplicationPermissions(
+            collect($validated['permissions'] ?? [])
+        );
+
         $grantable = $this->grantablePermissionNames();
 
         if ($grantable !== null) {
-            $requested_names = Permission::whereIn('id', $validated['permissions'] ?? [])->pluck('name');
+            $requested_names = Permission::whereIn('id', $requested)->pluck('name');
             $foreign = $requested_names->diff($grantable);
 
             if ($foreign->isNotEmpty()) {
@@ -101,12 +111,12 @@ class PermissionsController extends Controller
         $old_values = $role->permissions->pluck('id')->toArray();
 
         // Sync permissions (replace all with selected)
-        $role->permissions()->sync($validated['permissions'] ?? []);
+        $role->permissions()->sync($requested->all());
 
         $action = ActionType::Updated->value;
         $module = 'Role Permissions';
         $description = 'Updated permissions for role ' . $role->name;
-        $this->setAuditLog($action, $module, $description, ['permissions' => $old_values], ['permissions' => $validated['permissions'] ?? []]);
+        $this->setAuditLog($action, $module, $description, ['permissions' => $old_values], ['permissions' => $requested->all()]);
 
         return response()->json([
             'message' => 'Permissions updated successfully!',
@@ -131,6 +141,24 @@ class PermissionsController extends Controller
             'create' => $auth_user->can("create $lowercase_category"),
             'delete' => $auth_user->can("delete $lowercase_category"),
         ];
+    }
+
+    /**
+     * Granting access to the Applications page also gives the role everything it
+     * needs to act on those applications: open a student's application
+     * (read applicants) and approve or decline it (update applications).
+     */
+    private function withImpliedApplicationPermissions(Collection $permission_ids): Collection
+    {
+        $names = Permission::whereIn('id', $permission_ids)->pluck('name');
+
+        if (! $names->contains('browse applications')) {
+            return $permission_ids;
+        }
+
+        $implied = Permission::whereIn('name', ['update applications', 'read applicants'])->pluck('id');
+
+        return $permission_ids->merge($implied)->unique()->values();
     }
 
     /**
