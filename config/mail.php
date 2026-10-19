@@ -37,6 +37,10 @@ return [
 
     'mailers' => [
 
+        'brevo' => [
+            'transport' => 'brevo',
+        ],
+
         'gmail-api' => [
             'transport' => 'gmail-api',
         ],
@@ -55,8 +59,8 @@ return [
             'stream' => [
                 'ssl' => [
                     'allow_self_signed' => (bool) env('ALLOW_SELF_SIGNED_SSL', env('APP_ENV') === 'local'),
-                    'verify_peer'       => (bool) env('VERIFY_SSL_PEER', env('APP_ENV') !== 'local'),
-                    'verify_peer_name'  => (bool) env('VERIFY_SSL_PEER', env('APP_ENV') !== 'local'),
+                    'verify_peer' => (bool) env('VERIFY_SSL_PEER', env('APP_ENV') !== 'local'),
+                    'verify_peer_name' => (bool) env('VERIFY_SSL_PEER', env('APP_ENV') !== 'local'),
                 ],
             ],
         ],
