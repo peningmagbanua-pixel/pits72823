@@ -22,11 +22,21 @@ class RegisterController extends Controller
             return redirect()->route('applicant.dashboard');
         }
 
+        if (!$this->registrationOpen()) {
+            return redirect()->route('applicant.login')
+                ->with('error', 'New registration is currently disabled. Please contact the administrator.');
+        }
+
         return view('applicant.auth.register');
     }
 
     public function register(Request $request)
     {
+        if (!$this->registrationOpen()) {
+            return redirect()->route('applicant.login')
+                ->with('error', 'New registration is currently disabled. Please contact the administrator.');
+        }
+
         $validated = $request->validate([
             'fullname' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('applicants', 'email')->whereNull('deleted_at')],
@@ -125,5 +135,15 @@ class RegisterController extends Controller
         );
 
         return redirect()->route('applicant.dashboard');
+    }
+
+    private function registrationOpen(): bool
+    {
+        $path     = storage_path('app/landing_settings.json');
+        $settings = file_exists($path)
+            ? (json_decode(file_get_contents($path), true) ?? [])
+            : [];
+
+        return (bool) ($settings['app_settings']['registration_open'] ?? true);
     }
 }

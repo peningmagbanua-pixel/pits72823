@@ -20,6 +20,7 @@ class RegistrationEmailReuseTest extends TestCase
         parent::setUp();
 
         $this->seed(RolesTableSeeder::class);
+        $this->setRegistrationOpen(true);
     }
 
     private function makeApplicant(?string $email = null): Applicant

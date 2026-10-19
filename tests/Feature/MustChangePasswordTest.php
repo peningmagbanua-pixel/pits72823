@@ -19,6 +19,7 @@ class MustChangePasswordTest extends TestCase
         parent::setUp();
 
         $this->seed(RolesTableSeeder::class);
+        $this->setRegistrationOpen(true);
     }
 
     private function admin(bool $mustChange = true): User

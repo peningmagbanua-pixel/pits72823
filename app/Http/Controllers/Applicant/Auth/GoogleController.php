@@ -67,6 +67,16 @@ class GoogleController extends Controller
             }
 
             // Email doesn't exist — create new applicant account and log them in
+            $path     = storage_path('app/landing_settings.json');
+            $settings = file_exists($path)
+                ? (json_decode(file_get_contents($path), true) ?? [])
+                : [];
+
+            if (!($settings['app_settings']['registration_open'] ?? true)) {
+                return redirect()->route('applicant.login')
+                    ->with('error', 'New registration is currently disabled. Please contact the administrator.');
+            }
+
             $names      = explode(' ', trim($googleUser->getName()));
             $firstname  = $names[0] ?? '';
             $lastname   = count($names) > 1 ? $names[count($names) - 1] : '';

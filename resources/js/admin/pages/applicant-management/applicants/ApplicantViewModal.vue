@@ -105,6 +105,14 @@ const STATUS_ACTIONS = {
 
 const STATUS_CONFIRM_COLOR = '#0d6efd';
 
+const REJECTION_REASONS = [
+    'Incomplete Requirements',
+    'Invalid Documents',
+    'Does Not Meet Eligibility Requirements',
+    'Late Application',
+    'Others (Please Specify)',
+];
+
 // The open applicant modal traps focus inside itself, so focusing the
 // SweetAlert textarea would immediately steal focus back and make it
 // impossible to type. Release the trap while the dialog is open and
@@ -139,19 +147,42 @@ const buildStatusDialog = (newStatus) => {
     };
 
     if (newStatus === 'rejected') {
-        options.input = 'textarea';
-        options.inputLabel = 'Rejection reason (required)';
-        options.inputPlaceholder =
-            'Explain what is missing, incorrect, or needs to be corrected in the submitted requirements. This will be sent to the applicant.';
-        options.inputAttributes = {
-            rows: 5,
-            'aria-label': 'Rejection reason',
+        options.html = `
+            <div class="text-start" style="font-size: 13px;">
+                <label for="rejection-reason-select" class="form-label fw-semibold mb-1">Rejection reason (required)</label>
+                <select id="rejection-reason-select" class="form-select form-select-sm">
+                    <option value="">Select a reason…</option>
+                    ${REJECTION_REASONS.map((r) => `<option value="${r}">${r}</option>`).join('')}
+                </select>
+                <div id="rejection-reason-detail-wrap" class="d-none mt-3">
+                    <label for="rejection-reason-detail" class="form-label fw-semibold mb-1">Please specify the reason (required)</label>
+                    <textarea id="rejection-reason-detail" class="form-control form-control-sm" rows="4"
+                        placeholder="Explain the reason for rejection. This will be sent to the applicant."></textarea>
+                </div>
+            </div>
+        `;
+        options.preConfirm = () => {
+            const selected = document.getElementById('rejection-reason-select')?.value || '';
+            const detail = (document.getElementById('rejection-reason-detail')?.value || '').trim();
+
+            if (!selected) {
+                Swal.showValidationMessage('Please select a rejection reason.');
+                return false;
+            }
+            if (selected === 'Others (Please Specify)' && !detail) {
+                Swal.showValidationMessage('Please specify the rejection reason.');
+                return false;
+            }
+            return selected === 'Others (Please Specify)' ? detail : selected;
         };
-        options.inputValidator = (value) => {
-            if (value && value.trim().length > 0) return null;
-            return 'Please provide a rejection reason before rejecting this application.';
+        options.willOpen = () => {
+            setModalFocusTrap(false);
+            const select = document.getElementById('rejection-reason-select');
+            const detailWrap = document.getElementById('rejection-reason-detail-wrap');
+            select?.addEventListener('change', () => {
+                detailWrap?.classList.toggle('d-none', select.value !== 'Others (Please Specify)');
+            });
         };
-        options.willOpen = () => setModalFocusTrap(false);
         options.willClose = () => setModalFocusTrap(true);
     }
 
@@ -172,7 +203,7 @@ const updateStatus = (newStatus) => {
 
                 const payload = { status: newStatus };
                 if (newStatus === 'rejected') {
-                    payload.rejection_reason = (result.value || '').trim();
+                    payload.rejection_reason = (typeof result.value === 'string' ? result.value : '').trim();
                 }
 
                 axios.put(`/api/applicants/${applicant.value.id}/status`, payload)
