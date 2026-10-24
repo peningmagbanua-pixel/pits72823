@@ -5,6 +5,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import { Modal } from "bootstrap";
 import { escapeHtml, resolveAssetUrl, waitForImages, formatProgramName } from "../../../../constants";
+import { departmentLetterhead, departmentLetterheadStyles, departmentPrintFooter, paginatePrintDocument } from "../../../../print/department-letterhead";
 import { processingAlert } from "../../../../sweetalert";
 import { useAuthUserStore } from '../../../stores/AuthUserStore';
 
@@ -376,12 +377,9 @@ const printSchedule = async (schedule) => {
         const res = await axios.get(`/api/exam-schedules/${schedule.id}/applicants`);
         const { schedule: sched, applicants } = res.data;
 
-        const rows = applicants.map((a, i) =>
-            `<tr><td>${i + 1}</td><td>${escapeHtml(a.firstname)} ${escapeHtml(a.lastname)}</td><td>${escapeHtml(a.email)}</td></tr>`
-        ).join('');
-
         const baseStyle = `
             @page {
+                size:A4;
                 margin:15mm;
                 @top-left { content:""; }
                 @top-center { content:""; }
@@ -391,43 +389,26 @@ const printSchedule = async (schedule) => {
                 @bottom-right { content:""; }
             }
             * { margin:0; padding:0; box-sizing:border-box; }
-            body { font-family:Arial,sans-serif; font-size:12px; padding:0; color:#111; }
-            .header { display:flex; align-items:center; justify-content:center; gap:10px; text-align:center; margin-bottom:14px; }
-            .logo { width:80px; height:80px; flex-shrink:0; }
-            .logo2 { height:64px; width:auto; flex-shrink:0; }
-            .header-text { }
-            .school { font-size:15px; font-weight:bold; }
-            .address { font-size:11px; color:#555; margin-top:2px; }
-            .report-title { font-size:14px; font-weight:bold; margin-top:8px; text-transform:uppercase; letter-spacing:.5px; }
-            .meta { font-size:11px; color:#666; margin-top:3px; }
-            hr { border:none; border-top:2px solid #333; margin:8px 0 14px; }
-            .info-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px; }
+            body { font-family:Arial,sans-serif; font-size:13px; padding:0; color:#111; }
+            ${departmentLetterheadStyles}
+            .report-title { font-family:"Times New Roman",serif; font-size:14px; font-weight:bold; margin:8px 0 2px; text-align:center; text-transform:uppercase; }
+            .meta { font-size:11px; color:#444; margin-bottom:12px; text-align:center; }
+            .info-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; }
             .info-table td { border: 1px solid #999; padding: 8px 12px; }
             .info-table td:first-child { font-weight: bold; width: 20%; background: #f5f5f5; }
-            table.applicants { width: 100%; border-collapse: collapse; }
-            table.applicants th, table.applicants td { border: 1px solid #ccc; padding: 6px 10px; vertical-align: middle; }
-            table.applicants th { background: #333; color: #fff; font-size: 11px; font-weight: 600; }
-            table.applicants td { font-size: 12px; }
-            table.applicants tr:nth-child(even) td { background: #f7f7f7; }
+            table.applicants, .print-table { width: 100%; border-collapse: collapse; }
+            table.applicants th, .print-table th, table.applicants td, .print-table td { border: 1px solid #ccc; padding: 6px 10px; vertical-align: middle; }
+            table.applicants th, .print-table th { background: #333; color: #fff; font-size: 12px; font-weight: 600; }
+            table.applicants td, .print-table td { font-size: 13px; }
+            table.applicants tr:nth-child(even) td, .print-table tr:nth-child(even) td { background: #f7f7f7; }
             .tc { text-align: center; }`;
 
         const headerHtml = `
-            <div class="header">
-                <img class="logo" src="${resolveAssetUrl('cnhs_logo.png')}" alt="CNHS Logo">
-                <div class="header-text">
-                    <div class="school">Carranglan National High School</div>
-                    <div class="address">Quezon Street, F.C. Otic Poblacion (Brgy. II), Carranglan, Nueva Ecija</div>
-                    <div class="report-title">Exam Schedule - ${escapeHtml(formatProgramName(sched.program))}</div>
-                    <div class="meta">${escapeHtml(sched.date)} • ${escapeHtml(sched.time_slot)} • Room: ${escapeHtml(sched.room)}</div>
-                </div>
-                <img class="logo2" src="${resolveAssetUrl('deped.webp')}" alt="DepEd Logo">
-            </div>
-            <hr>`;
+            ${departmentLetterhead(resolveAssetUrl)}
+            <div class="report-title">Exam Schedule - ${escapeHtml(formatProgramName(sched.program))}</div>
+            <div class="meta">${escapeHtml(sched.date)} • ${escapeHtml(sched.time_slot)} • Room: ${escapeHtml(sched.room)}</div>`;
 
-        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-            <title>Exam Schedule - ${escapeHtml(formatProgramName(sched.program))}</title>
-            <style>${baseStyle}</style>
-            </head><body>
+        const prefixHtml = `
             ${headerHtml}
             <table class="info-table">
                 <tr><td>Program</td><td>${escapeHtml(formatProgramName(sched.program))}</td></tr>
@@ -436,18 +417,11 @@ const printSchedule = async (schedule) => {
                 <tr><td>Room</td><td>${escapeHtml(sched.room)}</td></tr>
                 <tr><td>Capacity</td><td>${escapeHtml(sched.capacity)}</td></tr>
                 <tr><td>Assigned</td><td>${applicants.length} / ${escapeHtml(sched.capacity)}</td></tr>
-            </table>
-            <table class="applicants">
-                <thead>
-                    <tr>
-                        <th class="tc" style="width:45px;">#</th>
-                        <th>Name</th>
-                        <th style="width:45%;">Email</th>
-                    </tr>
-                </thead>
-                <tbody>${rows || '<tr><td colspan="3" class="tc" style="padding:18px;">No approved applicants assigned.</td></tr>'}</tbody>
-            </table>
-            </body></html>`;
+            </table>`;
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+            <title></title>
+            <style>${baseStyle}</style>
+            </head><body></body></html>`;
 
         const printWin = window.open('', '_blank');
         if (!printWin) {
@@ -456,6 +430,20 @@ const printSchedule = async (schedule) => {
         }
         printWin.document.write(html);
         printWin.document.close();
+        await waitForImages(printWin);
+        const tableRows = applicants.length
+            ? applicants.map((applicant, index) =>
+                `<td class="tc">${index + 1}</td><td>${escapeHtml(applicant.firstname)} ${escapeHtml(applicant.lastname)}</td><td>${escapeHtml(applicant.email)}</td>`
+            )
+            : ['<td colspan="3" class="tc" style="padding:18px;">No approved applicants assigned.</td>'];
+        paginatePrintDocument(printWin, {
+            groups: [{ prefixHtml, rows: tableRows }],
+            tableHeadHtml: `
+                <th class="tc" style="width:45px;">#</th>
+                <th>Name</th>
+                <th style="width:45%;">Email</th>`,
+            footerHtml: departmentPrintFooter(resolveAssetUrl),
+        });
         await waitForImages(printWin);
         printWin.focus();
         printWin.print();

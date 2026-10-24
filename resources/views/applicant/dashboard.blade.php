@@ -73,7 +73,7 @@
     <div id="applicant-app"></div>
     <script src="{{ asset('../js/admin-lte.js') }}" defer></script>
     <script src="{{ asset('../js/darkmode.js') }}" defer></script>
-    <script src="{{ asset('../js/eye-protection.js') }}" defer></script>
+    <script src="{{ asset('../js/eye-protection.js') }}?v={{ @filemtime(public_path('js/eye-protection.js')) }}" defer></script>
 </body>
 
 </html>

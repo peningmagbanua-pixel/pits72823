@@ -582,4 +582,31 @@ onMounted(() => fetchStats());
 [data-bs-theme="dark"] .dc-btn-refresh:hover { border-color: #f5a5a5; color: #f5a5a5; }
 [data-bs-theme="dark"] .dc-doughnut-center__num { color: #eee; }
 [data-bs-theme="dark"] .dc-prog-row__count { color: #ddd; }
+
+/* ── Mobile (≤767.98px): compact cards, readable table ───────────── */
+@media (max-width: 767.98px) {
+    .dc-card__header { padding: 10px 12px; }
+
+    /* Stat cards: slightly smaller so 2 fit comfortably per row */
+    .dc-stat-card { min-height: 92px; }
+    .dc-stat { padding: 12px 6px; gap: 2px; }
+    .dc-stat__icon { width: 32px; height: 32px; font-size: 1rem; border-radius: 8px; }
+    .dc-stat__num   { font-size: 1.4rem; }
+    .dc-stat__label { font-size: 10px; }
+
+    /* Keep the table flush inside the card (overrides the global
+       mobile .card-body padding rule) */
+    .dc-card .card-body.p-0 { padding: 0 !important; }
+
+    /* Table: scroll horizontally instead of crushing the columns */
+    .dc-table { min-width: 540px; }
+    .dc-table thead th,
+    .dc-table tbody td { padding: 8px 10px; }
+
+    /* Exam rows: wrap the meta info onto its own line on narrow screens */
+    .dc-exam-row { flex-wrap: wrap; gap: 8px; }
+    .dc-exam-row__meta { flex: 0 0 100%; order: 3; gap: 8px; }
+    .dc-exam-row__cap { min-width: auto; margin-left: auto; }
+    .dc-cap-bar { width: 64px; }
+}
 </style>

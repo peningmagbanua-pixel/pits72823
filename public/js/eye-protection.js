@@ -140,6 +140,52 @@
         applyBrightness(100);
     }
 
+    // Native range-input dragging is unreliable on many mobile browsers,
+    // especially inside the fixed app header: the drag frequently cancels
+    // mid-gesture and the ends of the track are hard to reach. On touch
+    // devices the slider value is therefore driven directly from pointer
+    // events (with pointer capture, so the finger can travel past the
+    // track edges). Mouse input keeps the browser's native behavior.
+    function enableTouchDrag(slider) {
+        if (!slider || slider.dataset.touchDrag) return;
+        slider.dataset.touchDrag = '1';
+        slider.style.touchAction = 'none';
+
+        const setFromClientX = (clientX) => {
+            const rect = slider.getBoundingClientRect();
+            const min = parseFloat(slider.min) || 0;
+            const max = parseFloat(slider.max) || 100;
+            const ratio = rect.width > 0 ? (clientX - rect.left) / rect.width : 0;
+            const clamped = Math.min(1, Math.max(0, ratio));
+
+            slider.value = Math.round(min + clamped * (max - min));
+            // Re-dispatch so the existing 'input' delegation keeps working
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+
+        slider.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'mouse') return;
+            e.preventDefault();
+            slider.setPointerCapture(e.pointerId);
+            setFromClientX(e.clientX);
+        });
+
+        slider.addEventListener('pointermove', (e) => {
+            if (e.pointerType === 'mouse') return;
+            if (!slider.hasPointerCapture(e.pointerId)) return;
+            e.preventDefault();
+            setFromClientX(e.clientX);
+        });
+
+        const release = (e) => {
+            if (slider.hasPointerCapture(e.pointerId)) {
+                slider.releasePointerCapture(e.pointerId);
+            }
+        };
+        slider.addEventListener('pointerup', release);
+        slider.addEventListener('pointercancel', release);
+    }
+
     function init() {
         loadPreferences();
 
@@ -163,6 +209,7 @@
 
         const observer = new MutationObserver(function() {
             if (document.getElementById('blueLightSlider')) {
+                enableTouchDrag(document.getElementById('brightnessSlider'));
                 syncSliderUI();
                 observer.disconnect();
             }

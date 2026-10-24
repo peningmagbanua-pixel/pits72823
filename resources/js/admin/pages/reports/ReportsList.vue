@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { escapeHtml, resolveAssetUrl, waitForImages, formatProgramName } from '../../../constants';
+import { departmentLetterhead, departmentLetterheadStyles, departmentPrintFooter, paginatePrintDocument } from '../../../print/department-letterhead';
 import Swal from 'sweetalert2';
 import useSchoolYearApi from '../../composables/api/useSchoolYearApi';
 
@@ -132,6 +133,7 @@ const openPrintWindow = async () => {
 
     const baseStyle = `
         @page {
+            size:A4;
             margin:15mm;
             @top-left { content:""; }
             @top-center { content:""; }
@@ -141,37 +143,23 @@ const openPrintWindow = async () => {
             @bottom-right { content:""; }
         }
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:Arial,sans-serif; font-size:12px; padding:0; color:#111; }
-        .header { display:flex; align-items:center; justify-content:center; gap:10px; text-align:center; margin-bottom:14px; }
-        .logo { width:80px; height:80px; flex-shrink:0; }
-        .logo2 { height:64px; width:auto; flex-shrink:0; }
-        .header-text { }
-        .school { font-size:15px; font-weight:bold; }
-        .address { font-size:11px; color:#555; margin-top:2px; }
-        .report-title { font-size:14px; font-weight:bold; margin-top:8px; text-transform:uppercase; letter-spacing:.5px; }
-        .meta { font-size:11px; color:#666; margin-top:3px; }
-        hr { border:none; border-top:2px solid #333; margin:8px 0 14px; }
+        body { font-family:Arial,sans-serif; font-size:13px; padding:0; color:#111; }
+        ${departmentLetterheadStyles}
+        .report-title { font-family:"Times New Roman",serif; font-size:13px; font-weight:bold; margin:8px 0 2px; text-align:center; text-transform:uppercase; }
+        .meta { font-size:10px; color:#444; margin-bottom:12px; text-align:center; }
         table { width:100%; border-collapse:collapse; }
-        th { background:#333; color:#fff; padding:7px 10px; font-size:11px; font-weight:600; border:1px solid #333; }
+        th { background:#333; color:#fff; padding:7px 10px; font-size:12px; font-weight:600; border:1px solid #333; }
         td { border:1px solid #ccc; padding:6px 10px; vertical-align:middle; }
         tr:nth-child(even) td { background:#f7f7f7; }
-        h3 { background:#2c3e50; color:#fff; padding:8px 12px; margin:20px 0 10px; font-size:14px; }
-        .page-break { page-break-after: always; }
+        h3 { background:#2c3e50; color:#fff; padding:8px 12px; margin:20px 0 10px; font-size:15px; }
+        .print-table { width:100%; border-collapse:collapse; }
         .tc { text-align:center; }
         .footer { margin-top:18px; font-size:11px; color:#666; text-align:right; }`;
 
     const headerHtml = `
-        <div class="header">
-            <img class="logo" src="${resolveAssetUrl('cnhs_logo.png')}" alt="CNHS Logo">
-            <div class="header-text">
-                <div class="school">Carranglan National High School</div>
-                <div class="address">Quezon Street, F.C. Otic Poblacion (Brgy. II), Carranglan, Nueva Ecija</div>
-                <div class="report-title">${escapeHtml(title)}</div>
-                <div class="meta">${escapeHtml(monthYear)}</div>
-            </div>
-            <img class="logo2" src="${resolveAssetUrl('deped.webp')}" alt="DepEd Logo">
-        </div>
-        <hr>`;
+        ${departmentLetterhead(resolveAssetUrl)}
+        <div class="report-title">${escapeHtml(title)}</div>
+        <div class="meta">${escapeHtml(monthYear)}</div>`;
 
     const isApproved = activeReport.value === 'approved';
     const thead = isApproved
@@ -191,41 +179,34 @@ const openPrintWindow = async () => {
     const colspan = isApproved ? 4 : 6;
 
     const buildRow = isApproved
-        ? (a, i) => `<tr>
+        ? (a, i) => `
                 <td class="tc">${i + 1}</td>
                 <td class="tc">${escapeHtml(a.date_added ?? '')}</td>
                 <td>${escapeHtml(formatName(a))}</td>
-                <td class="tc">${escapeHtml(a.email ?? '')}</td>
-            </tr>`
-        : (a, i) => `<tr>
+                <td class="tc">${escapeHtml(a.email ?? '')}</td>`
+        : (a, i) => `
                 <td class="tc">${i + 1}</td>
                 <td class="tc">${escapeHtml(a.date_added ?? '')}</td>
                 <td>${escapeHtml(formatName(a))}</td>
                 <td class="tc">${escapeHtml(a.date ?? '')}</td>
                 <td class="tc">${escapeHtml(a.time_slot ?? '')}</td>
-                <td class="tc">${escapeHtml(a.room ?? '')}</td>
-            </tr>`;
+                <td class="tc">${escapeHtml(a.room ?? '')}</td>`;
 
-    const groups = groupByProgram(reportRows.value);
-
-    const sections = groups.length
-        ? groups.map(([program, rows], idx) => `
-            ${idx > 0 ? `<div class="page-break"></div>${headerHtml}` : ''}
-            <h3>${escapeHtml(formatProgramName(program))}</h3>
-            <table>
-                <thead><tr>${thead}</tr></thead>
-                <tbody>${rows.map((a, i) => buildRow(a, i)).join('')}</tbody>
-            </table>`).join('')
-        : `<table><tbody><tr><td colspan="${colspan}" style="text-align:center;padding:18px;">No records found.</td></tr></tbody></table>`;
-
-    const tableHtml = `${headerHtml}${sections}
-        <div class="footer">Total: ${reportRows.value.length} record(s)</div>`;
+    const programGroups = groupByProgram(reportRows.value);
+    const groups = programGroups.length
+        ? programGroups.map(([program, rows]) => ({
+            prefixHtml: `${headerHtml}<h3>${escapeHtml(formatProgramName(program))}</h3>`,
+            rows: rows.map((applicant, index) => buildRow(applicant, index)),
+        }))
+        : [{
+            prefixHtml: headerHtml,
+            rows: [`<td colspan="${colspan}" style="text-align:center;padding:18px;">No records found.</td>`],
+        }];
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-        <title>${escapeHtml(title)}</title>
+        <title></title>
         <style>${baseStyle}</style>
         </head><body>
-        ${tableHtml}
         </body></html>`;
 
     const win = window.open('', '_blank');
@@ -237,6 +218,13 @@ const openPrintWindow = async () => {
     win.document.write(html);
     win.document.close();
     await waitForImages(win);
+    paginatePrintDocument(win, {
+        groups,
+        tableHeadHtml: thead,
+        footerHtml: departmentPrintFooter(resolveAssetUrl),
+        trailerHtml: `<div class="footer">Total: ${reportRows.value.length} record(s)</div>`,
+    });
+    await waitForImages(win);
     win.focus();
     win.print();
 };
@@ -245,6 +233,9 @@ const printReport = async () => {
     printing.value = true;
     try {
         await openPrintWindow();
+    } catch (error) {
+        console.error('Print failed:', error);
+        Swal.fire('Error', 'Failed to prepare report for printing.', 'error');
     } finally {
         printing.value = false;
     }

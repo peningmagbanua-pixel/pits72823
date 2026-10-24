@@ -26,7 +26,7 @@ const logout = () => {
             <ul class="navbar-nav ms-auto align-items-center">
                 
                 <li class="nav-item me-1">
-                    <div class="dropdown">
+                    <div class="dropdown" data-bs-auto-close="false">
                         <button class="btn btn-link nav-link" type="button" data-bs-toggle="dropdown"
                             aria-expanded="false" title="Eye Protection">
                             <i class="bi bi-eye-fill"></i>
@@ -62,7 +62,7 @@ const logout = () => {
                                     </label>
                                     <small class="text-muted" id="brightnessValue">100%</small>
                                 </div>
-                                <input type="range" class="form-range" min="30" max="100" id="brightnessSlider">
+                                <input type="range" class="form-range" min="0" max="100" id="brightnessSlider">
                             </div>
 
                             <hr class="my-3">

@@ -52,6 +52,7 @@ const certAgreed         = ref(false);
 const healthSignature    = ref('');   // drawn signature (PNG data URL)
 const declarationCompleted = ref(false);
 const declarationSignedAt  = ref('');
+const printDeclaration = () => window.print();
 
 // Signature pad lives in its own nested modal; keep a ref to capture/clear it.
 const signaturePadRef = ref(null);
@@ -632,15 +633,15 @@ const handleSubmit = async () => {
 
                         <!-- Government / School Header -->
                         <div class="modal-header hd-header border-0 pb-0">
-                            <img class="hd-header__logo" src="/images/cnhs_logo.png" alt="Carranglan National High School Logo">
+                            <img class="hd-header__logo" src="/images/deped%20logo.png" alt="Department of Education seal">
                             <div class="hd-header__text">
                                 <div class="hd-header__gov">Republic of the Philippines</div>
-                                <div class="hd-header__gov">Department of Education</div>
+                                <div class="hd-header__department">Department of Education</div>
                                 <div class="hd-header__region">REGION III &ndash; CENTRAL LUZON</div>
+                                <div class="hd-header__division">SCHOOLS DIVISION OFFICE OF NUEVA ECIJA</div>
                                 <h5 class="hd-header__title mb-0">HEALTH DECLARATION FORM</h5>
                                 <p class="hd-header__subtitle mb-0">Special Curricular Program in Science &mdash; Carranglan National High School</p>
                             </div>
-                            <img class="hd-header__logo hd-header__logo--deped" src="/images/deped.webp" alt="DepEd Logo">
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="hd-divider"></div>
@@ -825,27 +826,24 @@ const handleSubmit = async () => {
 
                         <!-- Footer: School / Government Office Contact -->
                         <div class="hd-footer">
+                            <div class="hd-footer__logos">
+                                <img src="/images/DepEd-MATATAG.png" alt="DepEd MATATAG">
+                                <img src="/images/bagongpilipinas.jpg" alt="Bagong Pilipinas">
+                                <img src="/images/cnhs_logo.png" alt="Carranglan National High School">
+                            </div>
                             <div class="hd-footer__contact">
-                                <div class="hd-footer__item">
-                                    <i class="bi bi-geo-alt-fill"></i>
-                                    <span>Quezon Street, F.C. Otic Poblacion (Brgy. II), Carranglan, Nueva Ecija</span>
-                                </div>
-                                <div class="hd-footer__item">
-                                    <i class="bi bi-telephone-fill"></i>
-                                    <span>(+63) 44-291-2340</span>
-                                </div>
-                                <div class="hd-footer__item">
-                                    <i class="bi bi-envelope-fill"></i>
-                                    <span>cnhs.edu.ph@gmail.com</span>
-                                </div>
-                                <div class="hd-footer__item">
-                                    <i class="bi bi-globe"></i>
-                                    <span>www.deped.gov.ph</span>
-                                </div>
+                                <span>Address: Brgy. Rizal, Santa Rosa, Nueva Ecija 3101</span>
+                                <span>Telephone No.: (044) 940 3121</span>
+                                <span>Email: nueva.ecija@deped.gov.ph</span>
+                                <span>Facebook Page: DepEd SDO Nueva Ecija</span>
+                                <span>Webpage: www.deped-ne.net.ph</span>
                             </div>
                         </div>
 
                         <div class="modal-footer hd-actions">
+                            <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold" @click="printDeclaration">
+                                <i class="bi bi-printer-fill me-1"></i>Print
+                            </button>
                             <button type="button" class="btn btn-secondary btn-sm fw-semibold" data-bs-dismiss="modal">
                                 <i class="bi bi-x-circle-fill me-1"></i>Close
                             </button>
@@ -926,10 +924,7 @@ const handleSubmit = async () => {
     flex-shrink: 0;
     object-fit: contain;
 }
-.hd-header__logo--deped {
-    width: auto;
-    height: 62px;
-}
+.hd-header__department { font-size: 13px; font-weight: 700; }
 .hd-header .btn-close { margin: 0; flex-shrink: 0; }
 .hd-header__gov {
     font-size: 12px;
@@ -944,6 +939,7 @@ const handleSubmit = async () => {
     color: #8B0000;
     margin-top: 6px;
 }
+.hd-header__division { font-size: 11px; }
 .hd-header__title {
     font-size: 22px;
     font-weight: 800;
@@ -1181,27 +1177,32 @@ const handleSubmit = async () => {
 .hd-footer {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 16px;
     flex-wrap: wrap;
     background: #fff;
-    border-top: 1px solid #e5e5e5;
-    padding: 14px 24px;
+    border-top: 2px solid #111;
+    padding: 8px 24px;
+}
+.hd-footer__logos {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+.hd-footer__logos img {
+    width: 48px;
+    height: 44px;
+    object-fit: contain;
 }
 .hd-footer__contact {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 4px 18px;
-    width: 100%;
-    font-size: 11.5px;
-    color: #555;
+    grid-template-columns: repeat(2, max-content);
+    gap: 2px 10px;
+    font-size: 8px;
+    line-height: 1.2;
+    color: #111;
 }
-.hd-footer__item {
-    display: flex;
-    align-items: flex-start;
-    gap: 6px;
-}
-.hd-footer__item i { color: #8B0000; margin-top: 2px; }
 
 /* ── Actions ─────────────────────────────────────────────────────── */
 .hd-actions {
@@ -1232,12 +1233,10 @@ const handleSubmit = async () => {
     .hd-footer__contact { grid-template-columns: 1fr; }
     .hd-header { gap: 10px; }
     .hd-header__logo { width: 64px; height: 64px; }
-    .hd-header__logo--deped { width: auto; height: 54px; }
 }
 @media (max-width: 575.98px) {
     .hd-header { padding: 16px 16px 12px; gap: 8px; }
     .hd-header__logo { width: 54px; height: 54px; }
-    .hd-header__logo--deped { width: auto; height: 44px; }
     .hd-header__gov { font-size: 11px; }
     .hd-header__region { font-size: 12px; }
     .hd-header__title { font-size: 18px; }
@@ -1252,19 +1251,59 @@ const handleSubmit = async () => {
 
 /* ── Print (A4) ──────────────────────────────────────────────────── */
 @media print {
-    @page { size: A4; margin: 12mm; }
+    @page { size: A4; margin: 12mm 15mm 29mm; }
+    :global(body *) { visibility: hidden !important; }
+    :global(#ste-declaration-modal),
+    :global(#ste-declaration-modal *) { visibility: visible !important; }
+    :global(#ste-declaration-modal) {
+        position: absolute !important;
+        inset: 0 auto auto 0 !important;
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        background: #fff !important;
+    }
+    :global(#ste-declaration-modal .modal-dialog) {
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+    }
+    :global(#ste-declaration-modal .modal-content),
+    :global(#ste-declaration-modal .modal-body) {
+        max-height: none !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
     .hd-modal {
         border: none;
         border-radius: 0;
         box-shadow: none;
+        overflow: visible;
     }
-    .hd-header { padding: 0 0 10px; }
-    .hd-header__logo,
-    .hd-header__logo--deped {
+    .hd-header {
+        display: block;
+        padding: 0 0 6px;
+        text-align: center;
+        border-bottom: 2px solid #111 !important;
+    }
+    .hd-header__logo {
+        display: block;
+        width: 46px;
+        height: 46px;
+        margin: 0 auto;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
-    .hd-body { background: #fff; padding: 12px 0; }
+    .hd-header__text { text-align: center; }
+    .hd-header__gov { font-size: 11px; line-height: 1.05; text-transform: none; letter-spacing: normal; }
+    .hd-header__department { font-size: 13px; line-height: 1.05; }
+    .hd-header__region,
+    .hd-header__division { font-size: 11px; line-height: 1.05; margin-top: 0; color: #111; }
+    .hd-header__title { font-size: 14px; line-height: 1.05; margin-top: 4px; }
+    .hd-header__subtitle { font-size: 11px; line-height: 1.05; margin-top: 2px; }
+    .hd-divider { display: none; }
+    .hd-body { background: #fff; padding: 12px 0; overflow: visible; }
     .hd-section {
         break-inside: avoid;
         page-break-inside: avoid;
@@ -1273,6 +1312,10 @@ const handleSubmit = async () => {
     }
     .hd-actions,
     .btn-close { display: none !important; }
-    .hd-footer { border-top: 1px solid #ddd; padding: 10px 0; }
+    .hd-footer { border-top: 2px solid #111; padding: 5px 0 0; margin: 0; break-inside: avoid; page-break-inside: avoid; }
+    .hd-footer__logos img {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 }
 </style>

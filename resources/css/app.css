@@ -1605,6 +1605,17 @@ body {
     z-index: 1030;
 }
 
+/* Eye Protection: while the panel is open, keep it above the screen-dimming
+   overlays (z-index 9998/9999 created by eye-protection.js) so the sliders
+   stay visible and usable all the way down to 0% brightness. Without this,
+   the panel dims along with the page and becomes invisible at low levels.
+   Only applies while this specific panel is open; other dropdowns, modals,
+   and the dimming of the rest of the page are unaffected. */
+.app-header:has(.dropdown-menu.show[style*="min-width: 320px"]),
+.app-header:has(.dropdown-menu.show[style*="min-width:320px"]) {
+    z-index: 10000;
+}
+
 .app-sidebar {
     background-color: var(--sidebar-color, #8b0000) !important;
     --lte-sidebar-hover-bg: rgba(255, 255, 255, 0.15);
@@ -3088,7 +3099,14 @@ nav[role="navigation"]:not([aria-label]):not([aria-labelledby])::before {
         margin-bottom: 0.4rem;
     }
 
-    /* Stat cards: 2-per-row already via col-6, keep that */
+    /* Stat cards: keep the dashboard's 2-per-row layout on mobile
+       (exclude them from the full-width toolbar rule above) */
+    .row.g-3.mb-3 > .col-6.col-md-3 {
+        width: 50% !important;
+        max-width: 50% !important;
+        flex: 0 0 50% !important;
+        margin-bottom: 0 !important;
+    }
 
     /* Header nav: reduce padding */
     .app-header .container-fluid {
@@ -3109,6 +3127,33 @@ nav[role="navigation"]:not([aria-label]):not([aria-labelledby])::before {
         max-width: calc(100vw - 2rem) !important;
         right: 0 !important;
         left: auto !important;
+        padding: 0.75rem !important;
+    }
+
+    /* Eye-protection panel: tighten spacing so it fits small screens */
+    .app-header .dropdown-menu[style*="min-width: 320px"] hr,
+    .app-header .dropdown-menu[style*="min-width:320px"] hr {
+        margin: 0.5rem 0;
+    }
+
+    /* Eye-protection sliders: compact on mobile but still larger than the
+       default Bootstrap thumb/track so they stay easy to tap; touch-action
+       stops the page from scrolling (which cancels the drag) mid-gesture */
+    .app-header .dropdown-menu[style*="min-width: 320px"] .form-range,
+    .app-header .dropdown-menu[style*="min-width:320px"] .form-range {
+        height: 1.75rem;
+        touch-action: none;
+    }
+    .app-header .dropdown-menu[style*="min-width: 320px"] .form-range::-webkit-slider-thumb,
+    .app-header .dropdown-menu[style*="min-width:320px"] .form-range::-webkit-slider-thumb {
+        width: 1.375rem;
+        height: 1.375rem;
+        margin-top: -0.4375rem;
+    }
+    .app-header .dropdown-menu[style*="min-width: 320px"] .form-range::-moz-range-thumb,
+    .app-header .dropdown-menu[style*="min-width:320px"] .form-range::-moz-range-thumb {
+        width: 1.375rem;
+        height: 1.375rem;
     }
 
     /* User dropdown: full width on tiny screens */
