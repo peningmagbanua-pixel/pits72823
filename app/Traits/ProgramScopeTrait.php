@@ -58,6 +58,27 @@ trait ProgramScopeTrait
     }
 
     /**
+     * Restrict a query on the programs table itself to the logged-in user's
+     * allowed program codes (matched against programs.initials).
+     * System Administrators are unrestricted; an empty assignment list
+     * yields no rows.
+     */
+    protected function applyProgramCodeScope($query)
+    {
+        $codes = $this->scopedPrograms();
+
+        if ($codes === null) {
+            return $query;
+        }
+
+        if (empty($codes)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereIn('initials', $codes);
+    }
+
+    /**
      * Abort with a 403 when the logged-in user may not access the given
      * program (null programs are only visible to System Administrators).
      * The $program parameter should be a program_id (UUID).

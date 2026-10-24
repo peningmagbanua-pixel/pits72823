@@ -857,4 +857,76 @@ class CoordinatorRoleTest extends TestCase
             ->getJson('/api/application-period')
             ->assertStatus(200);
     }
+
+    public function test_programs_list_is_scoped_to_the_coordinator_designated_program(): void
+    {
+        $spictInitials = collect($this->actingAs($this->spictCoordinator)
+            ->getJson('/api/programs?paginate=100')
+            ->assertStatus(200)
+            ->json('data'))->pluck('initials');
+
+        $this->assertTrue($spictInitials->contains('SPICT'));
+        $this->assertFalse($spictInitials->contains('STE'));
+
+        $steInitials = collect($this->actingAs($this->steCoordinator)
+            ->getJson('/api/programs?paginate=100')
+            ->assertStatus(200)
+            ->json('data'))->pluck('initials');
+
+        $this->assertTrue($steInitials->contains('STE'));
+        $this->assertFalse($steInitials->contains('SPICT'));
+
+        // A coordinator designated to both programs sees both.
+        $dualInitials = collect($this->actingAs($this->dualCoordinator)
+            ->getJson('/api/programs?paginate=100')
+            ->assertStatus(200)
+            ->json('data'))->pluck('initials');
+
+        $this->assertTrue($dualInitials->contains('SPICT'));
+        $this->assertTrue($dualInitials->contains('STE'));
+
+        // The System Administrator stays unrestricted.
+        $adminInitials = collect($this->actingAs($this->sysadmin)
+            ->getJson('/api/programs?paginate=100')
+            ->assertStatus(200)
+            ->json('data'))->pluck('initials');
+
+        $this->assertTrue($adminInitials->contains('SPICT'));
+        $this->assertTrue($adminInitials->contains('STE'));
+    }
+
+    public function test_coordinator_cannot_create_new_programs(): void
+    {
+        // The New Program button stays hidden: create is not part of the grant.
+        $permissions = $this->actingAs($this->spictCoordinator)
+            ->getJson('/api/check/programs/permissions')
+            ->assertStatus(200)
+            ->json();
+
+        $this->assertFalse($permissions['create']);
+        $this->assertTrue($permissions['browse']);
+        $this->assertTrue($permissions['update']);
+
+        // Even if an admin re-grants the action, the role itself stays blocked.
+        $coordinatorRole = Role::where('name', 'Coordinator')->firstOrFail();
+        $createPrograms = Permission::where('name', 'create programs')->firstOrFail();
+        $coordinatorRole->permissions()->syncWithoutDetaching([$createPrograms->id]);
+
+        $this->actingAs($this->spictCoordinator)
+            ->postJson('/api/programs', ['initials' => 'NEW', 'name' => 'New Program'])
+            ->assertStatus(403);
+
+        $this->assertFalse(
+            Program::withTrashed()->where('initials', 'NEW')->exists()
+        );
+
+        // The System Administrator can still create programs.
+        $this->actingAs($this->sysadmin)
+            ->postJson('/api/programs', ['initials' => 'NEW', 'name' => 'New Program'])
+            ->assertStatus(200);
+
+        $this->assertTrue(
+            Program::withTrashed()->where('initials', 'NEW')->exists()
+        );
+    }
 }

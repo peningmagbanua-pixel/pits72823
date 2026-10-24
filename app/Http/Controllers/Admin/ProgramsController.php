@@ -8,11 +8,12 @@ use Illuminate\Http\Request;
 use App\Models\Admin\Program;
 use App\Traits\AuditLogsTrait;
 use App\Traits\AdminActivityLogsTrait;
+use App\Traits\ProgramScopeTrait;
 use App\Enums\ActionType;
 
 class ProgramsController extends Controller
 {
-    use AuditLogsTrait, AdminActivityLogsTrait;
+    use AuditLogsTrait, AdminActivityLogsTrait, ProgramScopeTrait;
     public function index()
     {
         $paginate = request('paginate');
@@ -29,7 +30,7 @@ class ProgramsController extends Controller
             $sort_field = 'created_at';
         }
 
-        $program = Program::search(trim($search))
+        $program = $this->applyProgramCodeScope(Program::search(trim($search)))
             ->when($deleted, fn ($query) => $query->onlyTrashed())
             ->orderBy($sort_field, $sort_order)
             ->paginate($paginate);
@@ -39,6 +40,12 @@ class ProgramsController extends Controller
 
     public function store(Request $request)
     {
+        // Creating a new program is a System Administrator task; coordinators
+        // may manage their designated programs but never add new ones.
+        if (! $this->checkHasRoleSystemAdministrator() && $this->checkHasRoleCoordinator()) {
+            abort(403, 'Coordinators cannot create programs.');
+        }
+
         $validated = $request->validate([
             'initials' => 'required',
             'name' => 'required',

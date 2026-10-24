@@ -31,12 +31,21 @@ class CoordinatorPermissionsSeeder extends Seeder
         'exam-scheduling',
         'academic-setup',
         'school-years',
-        'programs',
         'users',
         'settings',
         'online-application',
         'reports',
         'audit-logs',
+    ];
+
+    /**
+     * Slugs granted with only these actions. Programs are read/update/delete
+     * only: creating a new program is a System Administrator task, so the
+     * "create programs" action is intentionally withheld (enforced again in
+     * ProgramsController::store).
+     */
+    private const COORDINATOR_LIMITED_PERMISSION_SLUGS = [
+        'programs' => ['browse', 'read', 'update', 'delete'],
     ];
 
     /**
@@ -66,6 +75,12 @@ class CoordinatorPermissionsSeeder extends Seeder
         }
 
         foreach (self::COORDINATOR_EDIT_ONLY_SLUGS as $slug => $actions) {
+            foreach ($actions as $action) {
+                $names[] = "$action $slug";
+            }
+        }
+
+        foreach (self::COORDINATOR_LIMITED_PERMISSION_SLUGS as $slug => $actions) {
             foreach ($actions as $action) {
                 $names[] = "$action $slug";
             }
