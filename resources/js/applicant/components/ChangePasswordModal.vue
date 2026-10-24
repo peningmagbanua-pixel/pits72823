@@ -114,13 +114,15 @@ const logout = () => {
                         </div>
 
                         <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn btn-primary btn-sm" :disabled="submitting">
+                            <button type="submit" class="btn btn-primary btn-sm" :disabled="submitting"
+                                title="Change password">
                                 <span v-if="submitting" class="spinner-border spinner-border-sm me-1"
                                     role="status"></span>
                                 <i v-else class="bi bi-check-lg me-1"></i>
                                 Change Password
                             </button>
-                            <button type="button" class="btn btn-link btn-sm text-muted" @click="logout">
+                            <button type="button" class="btn btn-link btn-sm text-muted" @click="logout"
+                                title="Log out">
                                 Log out instead
                             </button>
                         </div>

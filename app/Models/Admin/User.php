@@ -4,6 +4,7 @@ namespace App\Models\Admin;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Traits\UserRolesTrait;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
@@ -61,6 +64,21 @@ class User extends Authenticatable
             'password' => 'hashed',
             'must_change_password' => 'boolean',
         ];
+    }
+
+    protected function avatar(): Attribute
+    {
+        return Attribute::get(function ($value) {
+            if (!$value) {
+                return null;
+            }
+
+            if (Str::startsWith($value, ['http://', 'https://', 'data:'])) {
+                return $value;
+            }
+
+            return Storage::disk('public')->url($value);
+        });
     }
 
     public function user_roles(): HasMany

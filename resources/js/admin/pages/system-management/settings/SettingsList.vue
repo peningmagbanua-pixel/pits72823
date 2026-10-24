@@ -697,6 +697,7 @@ onMounted(async () => {
             <div v-if="permissions.browse && isSystemAdministrator" class="mb-4">
                 <div class="d-flex flex-wrap gap-2">
                     <button v-for="f in SETTINGS_FILTERS" :key="f.id" type="button"
+                        :title="f.label"
                         class="btn btn-sm rounded-pill px-3 py-2"
                         :class="activeFilter === f.id ? 'btn-primary' : 'btn-outline-secondary bg-white'"
                         @click="activeFilter = f.id">
@@ -778,6 +779,7 @@ onMounted(async () => {
 
                             <div v-if="permissions.update" class="mt-3">
                                 <button class="btn btn-primary btn-sm" :disabled="savingAppSettings"
+                                    title="Save application settings"
                                     @click="saveAppSettings">
                                     <span v-if="savingAppSettings"
                                         class="spinner-border spinner-border-sm me-1" role="status"></span>
@@ -834,6 +836,7 @@ onMounted(async () => {
 
                             <div v-if="onlineApplicationPermissions.update" class="mt-3">
                                 <button class="btn btn-primary btn-sm" :disabled="savingPeriod || !applicationPeriod.school_year"
+                                    title="Save application period"
                                     @click="saveApplicationPeriod">
                                     <span v-if="savingPeriod"
                                         class="spinner-border spinner-border-sm me-1" role="status"></span>
@@ -853,7 +856,7 @@ onMounted(async () => {
                                 <i class="bi bi-file-earmark-check-fill me-2 text-secondary"></i>Requirements
                             </h6>
                             <div class="d-flex gap-2">
-                                <button v-if="permissions.create" class="btn btn-primary btn-sm" @click="openAddReqModal">
+                                <button v-if="permissions.create" class="btn btn-primary btn-sm" title="Add requirement" @click="openAddReqModal">
                                     <i class="bi bi-plus-circle me-1"></i>New Requirement
                                 </button>
                             </div>
@@ -909,6 +912,7 @@ onMounted(async () => {
                                                     <i class="bi bi-eye-fill"></i>
                                                 </button>
                                                 <button v-if="permissions.update && canManageRequirement(req)" class="btn btn-secondary btn-sm me-1"
+                                                    title="Edit requirement"
                                                     @click="openEditReqModal(req)">
                                                     <i class="bi bi-pencil-square"></i>
                                                 </button>
@@ -919,6 +923,7 @@ onMounted(async () => {
                                                     <i class="bi" :class="req.is_active ? 'bi-eye-slash-fill' : 'bi-eye-fill'"></i>
                                                 </button>
                                                 <button v-if="permissions.delete && canManageRequirement(req)" class="btn btn-danger btn-sm"
+                                                    title="Delete requirement"
                                                     @click="deleteRequirement(req.id)">
                                                     <i class="bi bi-trash-fill"></i>
                                                 </button>
@@ -973,6 +978,7 @@ onMounted(async () => {
                         </div>
                         <div class="card-footer bg-white border-top py-3">
                             <button v-if="permissions.update" class="btn btn-primary btn-sm" :disabled="savingNotifications"
+                                title="Save notifications"
                                 @click="saveNotifications">
                                 <span v-if="savingNotifications"
                                     class="spinner-border spinner-border-sm me-1" role="status"></span>
@@ -1023,6 +1029,7 @@ onMounted(async () => {
                                                 </label>
                                                 <button v-if="currentLogoUrl && currentLogoUrl !== '/images/cnhs_logo.png'"
                                                     type="button" class="btn btn-outline-danger btn-sm"
+                                                    title="Remove school logo"
                                                     @click="clearLogo">
                                                     <i class="bi bi-x-lg me-1"></i>Remove
                                                 </button>
@@ -1049,6 +1056,7 @@ onMounted(async () => {
                                                 </label>
                                                 <button v-if="currentBannerUrl"
                                                     type="button" class="btn btn-outline-danger btn-sm"
+                                                    title="Remove banner image"
                                                     @click="clearBanner">
                                                     <i class="bi bi-x-lg me-1"></i>Remove
                                                 </button>
@@ -1112,6 +1120,7 @@ onMounted(async () => {
                                             </button>
                                         </div>
                                         <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            title="Add hero step"
                                             @click="addHeroStep"
                                             :disabled="landingForm.hero_steps.length >= 10">
                                             <i class="bi bi-plus-lg me-1"></i>Add Step
@@ -1167,6 +1176,7 @@ onMounted(async () => {
                                                 maxlength="7"
                                                 style="width:110px;font-family:monospace;">
                                             <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                title="Reset to default color"
                                                 @click="landingForm.primary_color = '#8B0000'">
                                                 Reset
                                             </button>
@@ -1205,6 +1215,7 @@ onMounted(async () => {
                                                 maxlength="7"
                                                 style="width:110px;font-family:monospace;">
                                             <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                title="Reset to default color"
                                                 @click="landingForm.sidebar_color = '#8B0000'">
                                                 Reset
                                             </button>
@@ -1256,6 +1267,7 @@ onMounted(async () => {
                                 <!-- Preview toggle -->
                                 <div class="mt-3 mb-2">
                                     <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        title="Toggle landing page preview"
                                         @click="showLandingPreview = !showLandingPreview">
                                         <i class="bi bi-eye me-1"></i>
                                         {{ showLandingPreview ? 'Hide Preview' : 'Preview' }}
@@ -1309,6 +1321,7 @@ onMounted(async () => {
                                 <!-- Save -->
                                 <div v-if="permissions.update" class="mt-3">
                                     <button class="btn btn-primary btn-sm" :disabled="savingLanding"
+                                        title="Save landing settings"
                                         @click="saveLandingSettings">
                                         <span v-if="savingLanding"
                                             class="spinner-border spinner-border-sm me-1" role="status"></span>
@@ -1353,6 +1366,7 @@ onMounted(async () => {
 
                             <div v-if="permissions.update" class="mt-3">
                                 <button class="btn btn-primary btn-sm" :disabled="savingSessionTimeout"
+                                    title="Save session timeout"
                                     @click="saveSessionTimeout">
                                     <span v-if="savingSessionTimeout"
                                         class="spinner-border spinner-border-sm me-1" role="status"></span>
@@ -1376,7 +1390,7 @@ onMounted(async () => {
             <div class="modal-content border-0 p-3">
                 <div class="modal-body">
                     <h6 class="text-center">New Requirement</h6>
-                    <button class="btn-close" @click="showAddReqModal = false"></button>
+                    <button class="btn-close" title="Close" @click="showAddReqModal = false"></button>
                     <div class="form-group mb-3">
                         <label class="form-label required">Requirement Name</label>
                         <input type="text" v-model="newReq.name"
@@ -1436,7 +1450,7 @@ onMounted(async () => {
                             placeholder="Notice shown above the uploads (optional)"></textarea>
                     </div>
                     <hr>
-                    <button class="btn btn-primary btn-sm" @click="submitAddRequirement">
+                    <button class="btn btn-primary btn-sm" title="Submit new requirement" @click="submitAddRequirement">
                         <i class="bi bi-floppy me-1"></i>Submit
                     </button>
                 </div>
@@ -1453,7 +1467,7 @@ onMounted(async () => {
             <div class="modal-content border-0 p-3">
                 <div class="modal-body">
                     <h6 class="text-center">Update Requirement</h6>
-                    <button class="btn-close" @click="showEditReqModal = false"></button>
+                    <button class="btn-close" title="Close" @click="showEditReqModal = false"></button>
                     <div class="form-group mb-3">
                         <label class="form-label required">Requirement Name</label>
                         <input type="text" v-model="editReqForm.name"
@@ -1513,7 +1527,7 @@ onMounted(async () => {
                             placeholder="Notice shown above the uploads (optional)"></textarea>
                     </div>
                     <hr>
-                    <button class="btn btn-primary btn-sm" @click="submitEditRequirement">
+                    <button class="btn btn-primary btn-sm" title="Update requirement" @click="submitEditRequirement">
                         <i class="bi bi-floppy me-1"></i>Update
                     </button>
                 </div>
@@ -1530,7 +1544,7 @@ onMounted(async () => {
             <div class="modal-content border-0 p-3">
                 <div class="modal-body" v-if="viewReq">
                     <h6 class="text-center">Requirement Details</h6>
-                    <button class="btn-close" @click="showViewReqModal = false"></button>
+                    <button class="btn-close" title="Close" @click="showViewReqModal = false"></button>
                     <div class="mb-2">
                         <span class="text-muted">Requirement Name:</span>
                         <div class="fw-semibold">{{ viewReq.name }}</div>
@@ -1569,7 +1583,7 @@ onMounted(async () => {
                         <div>{{ viewReq.created_at }}</div>
                     </div>
                     <hr>
-                    <button class="btn btn-secondary btn-sm" @click="showViewReqModal = false">
+                    <button class="btn btn-secondary btn-sm" title="Close" @click="showViewReqModal = false">
                         <i class="bi bi-x-circle me-1"></i>Close
                     </button>
                 </div>

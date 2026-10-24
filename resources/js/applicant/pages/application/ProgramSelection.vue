@@ -198,7 +198,8 @@ const getButtonLabel = (initials) => {
                                     </li>
                                 </ul>
                             </div>
-                            <button class="btn fw-semibold w-100" :class="'btn-' + getProgramColor(prog.initials)">
+                            <button class="btn fw-semibold w-100" :class="'btn-' + getProgramColor(prog.initials)"
+                                :title="'Select ' + prog.name">
                                 <i class="bi bi-arrow-right-circle me-2"></i
                                 >{{ getButtonLabel(prog.initials) }}
                             </button>

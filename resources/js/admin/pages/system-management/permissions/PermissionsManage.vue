@@ -163,7 +163,7 @@ const isAllSelected = () => {
                     <h6 class="text-center mb-4">
                         <i class="bi bi-shield-lock me-2"></i>Manage Permissions
                     </h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" title="Close" data-bs-dismiss="modal"></button>
                     <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
                         <i class="bi bi-info-circle-fill me-2"></i>
                         <div>
@@ -177,7 +177,7 @@ const isAllSelected = () => {
 
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0">Permissions</h6>
-                        <button type="button" class="btn btn-sm btn-outline-primary" @click="selectAll" :disabled="form.name === ROLE.SYSTEM_ADMINISTRATOR">
+                        <button type="button" class="btn btn-sm btn-outline-primary" title="Select all permissions" @click="selectAll" :disabled="form.name === ROLE.SYSTEM_ADMINISTRATOR">
                             <i class="bi" :class="isAllSelected() ? 'bi-check-square' : 'bi-square'"></i>
                             {{ isAllSelected() ? 'Deselect All' : 'Select All' }}
                         </button>
@@ -223,7 +223,7 @@ const isAllSelected = () => {
                     </div>
                     </template>
 
-                    <button type="submit" @click="handleSubmit" class="btn btn-primary btn-sm mt-3" :disabled="form.name === ROLE.SYSTEM_ADMINISTRATOR">
+                    <button type="submit" @click="handleSubmit" class="btn btn-primary btn-sm mt-3" title="Update permissions" :disabled="form.name === ROLE.SYSTEM_ADMINISTRATOR">
                         <i class="bi bi-floppy me-1"></i>Update
                     </button>
                 </div>

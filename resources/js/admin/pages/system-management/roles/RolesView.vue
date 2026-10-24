@@ -34,7 +34,7 @@ defineExpose({ getRole });
             <div class="modal-content border-0 p-3">
                 <div class="modal-body">
                     <h6 class="text-center">Role Details</h6>
-                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                    <button class="btn-close" title="Close" data-bs-dismiss="modal"></button>
                     
                     <div class="row mt-3">
                         <div class="col-md-6">

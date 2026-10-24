@@ -89,7 +89,7 @@ const isSystemAdministrator = () => {
             <div class="modal-content border-0 p-3">
                 <div class="modal-body">
                     <h6 class="text-center">Update User</h6>
-                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                    <button class="btn-close" title="Close" data-bs-dismiss="modal"></button>
                     <Form @submit="handleSubmit" v-slot:default="{ errors }">
                         <div class="row">
                             <div class="col-md-6 form-group mt-3">
@@ -163,7 +163,7 @@ const isSystemAdministrator = () => {
                             </div>
                         </div>
                         <hr>
-                        <button type="submit" class="btn btn-primary btn-sm">
+                        <button type="submit" class="btn btn-primary btn-sm" title="Update user">
                             <i class="bi bi-floppy me-1"></i>Update
                         </button>
                     </Form>

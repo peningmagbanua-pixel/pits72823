@@ -68,7 +68,8 @@ const logout = () => {
                             <hr class="my-3">
 
                             <div class="mb-3">
-                                <button id="resetEyeProtection" class="btn btn-sm btn-outline-secondary w-100">
+                                <button id="resetEyeProtection" class="btn btn-sm btn-outline-secondary w-100"
+                                    title="Reset eye protection">
                                     <i class="bi bi-arrow-counterclockwise me-2"></i>
                                     Reset to Default
                                 </button>
@@ -78,7 +79,7 @@ const logout = () => {
                 </li>
 
                 <li class="nav-item me-1">
-                    <button id="theme-toggle-icon" class="btn btn-link nav-link">
+                    <button id="theme-toggle-icon" class="btn btn-link nav-link" title="Toggle theme">
                         <i class="bi bi-brightness-high-fill" id="theme-icon"></i>
                     </button>
                 </li>
@@ -114,7 +115,8 @@ const logout = () => {
                                 <i class="bi bi-person-fill me-1"></i>Profile
                             </a>
                             <button @click.prevent="logout()"
-                                class="btn btn-sm btn-link text-decoration-none bg-body text-body w-50">
+                                class="btn btn-sm btn-link text-decoration-none bg-body text-body w-50"
+                                title="Log out">
                                 <i class="bi bi-power me-1"></i>Log out
                             </button>
                         </li>

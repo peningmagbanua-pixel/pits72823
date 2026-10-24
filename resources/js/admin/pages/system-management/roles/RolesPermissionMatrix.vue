@@ -39,7 +39,7 @@ onMounted(() => {
                     <h5 class="text-center" id="permissionMatrixLabel">
                         <i class="bi bi-grid-3x3-gap-fill me-2"></i>Permission Matrix
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" title="Close" data-bs-dismiss="modal" aria-label="Close"></button>
                     <div v-if="loading" class="text-center py-5">
                         <div class="spinner-border text-primary" role="status"></div>
                         <p class="mt-3 text-muted">Loading permission matrix...</p>

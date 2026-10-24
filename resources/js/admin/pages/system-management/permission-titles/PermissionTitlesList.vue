@@ -144,7 +144,7 @@ onMounted(() => {
         <div class="container-fluid">
            <div class="d-flex justify-content-between mb-2">
                 <div class="d-flex">
-                    <button v-if="permissions.create" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#new-permission-title">
+                    <button v-if="permissions.create" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#new-permission-title" title="Add new permission title">
                         <i class="bi bi-plus-circle me-1"></i>New Permission Title
                     </button>
                 </div>
@@ -222,18 +222,18 @@ onMounted(() => {
                                             </td>
                                             <td class="text-center align-middle actions-cell">
                                                 <template v-if="showDeleted">
-                                                    <button v-if="permissions.delete" type="button" class="btn btn-success btn-sm"
+                                                    <button v-if="permissions.delete" type="button" class="btn btn-success btn-sm" title="Restore"
                                                         @click="restorePermissionTitle(permissionTitle.id)">
                                                         <i class="bi bi-arrow-counterclockwise"></i>
                                                     </button>
                                                 </template>
                                                 <template v-else>
-                                                    <button v-if="permissions.update" class="btn btn-secondary btn-sm me-1"
+                                                    <button v-if="permissions.update" class="btn btn-secondary btn-sm me-1" title="Edit"
                                                         @click="editPermissionTitle(permissionTitle)"
                                                         data-bs-toggle="modal" data-bs-target="#update-permission-title">
                                                         <i class="bi bi-pencil-square"></i>
                                                     </button>
-                                                    <button v-if="permissions.delete" type="button" class="btn btn-danger btn-sm"
+                                                    <button v-if="permissions.delete" type="button" class="btn btn-danger btn-sm" title="Delete"
                                                         @click="deletePermissionTitle(permissionTitle.id)">
                                                         <i class="bi bi-trash-fill"></i>
                                                     </button>

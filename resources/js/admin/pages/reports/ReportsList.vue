@@ -282,7 +282,7 @@ onMounted(() => {
                                 {{ sy.school_year_start && sy.school_year_end ? `${sy.school_year_start}-${sy.school_year_end}` : sy.school_year_name }}
                             </option>
                         </select>
-                        <button class="btn btn-primary btn-sm" @click="generate">
+                        <button class="btn btn-primary btn-sm" @click="generate" title="Generate report">
                             <i class="bi bi-lightning-fill me-1"></i>Generate
                         </button>
                     </div>
@@ -292,13 +292,13 @@ onMounted(() => {
             <!-- ── Row 2: Report type buttons (shown after Generate) ── -->
             <template v-if="generated">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                    <button class="btn btn-sm btn-outline-success"
+                    <button class="btn btn-sm btn-outline-success" title="Show approved applications report"
                         :class="{ active: activeReport === 'approved' }"
                         :disabled="loadingReport"
                         @click="loadApproved">
                         <i class="bi bi-person-check me-1"></i>Approved Applicants
                     </button>
-                    <button class="btn btn-sm btn-outline-primary"
+                    <button class="btn btn-sm btn-outline-primary" title="Show exam schedule report"
                         :class="{ active: activeReport === 'exam' }"
                         :disabled="loadingReport"
                         @click="loadExamSchedule">
@@ -319,7 +319,7 @@ onMounted(() => {
                             Approved Applicants
                             <span class="text-muted ms-1">{{ selectedYearName() }}</span>
                         </span>
-                        <button class="btn btn-sm btn-outline-secondary" :disabled="printing" @click="printReport">
+                        <button class="btn btn-sm btn-outline-secondary" :disabled="printing" @click="printReport" title="Print report">
                             <span v-if="printing" class="spinner-border spinner-border-sm me-1" role="status"></span>
                             <i v-else class="bi bi-printer me-1"></i>Print
                         </button>
@@ -363,7 +363,7 @@ onMounted(() => {
                             Exam Schedule
                             <span class="text-muted ms-1">{{ selectedYearName() }}</span>
                         </span>
-                        <button class="btn btn-sm btn-outline-secondary" :disabled="printing" @click="printReport">
+                        <button class="btn btn-sm btn-outline-secondary" :disabled="printing" @click="printReport" title="Print report">
                             <span v-if="printing" class="spinner-border spinner-border-sm me-1" role="status"></span>
                             <i v-else class="bi bi-printer me-1"></i>Print
                         </button>

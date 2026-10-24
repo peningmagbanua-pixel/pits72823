@@ -156,7 +156,7 @@ onMounted(() => getActivityLogs());
                                             </td>
                                             <td class="align-middle">{{ log.description }}</td>
                                             <td class="text-center align-middle actions-cell">
-                                                <button class="btn btn-info btn-sm" @click="viewLog(log)">
+                                                <button class="btn btn-info btn-sm" @click="viewLog(log)" title="View log">
                                                     <i class="bi bi-eye-fill"></i>
                                                 </button>
                                             </td>
@@ -207,7 +207,7 @@ onMounted(() => getActivityLogs());
                     <h5 class="modal-title fw-bold">
                         <i class="bi bi-person-lines-fill me-2 text-info"></i>Activity Log Details
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" title="Close"></button>
                 </div>
                 <div class="modal-body" style="font-size: 13px;">
                     <div class="table-responsive-sm">
@@ -242,7 +242,7 @@ onMounted(() => getActivityLogs());
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" title="Close">Close</button>
                 </div>
             </div>
         </div>

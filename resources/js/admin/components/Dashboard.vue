@@ -176,7 +176,7 @@ onMounted(() => fetchStats());
                             <span class="dc-card__title">
                                 <i class="bi bi-ui-checks me-2" style="color:#800000;"></i>Recent Applications
                             </span>
-                            <button class="dc-btn-refresh" @click="fetchStats">
+                            <button class="dc-btn-refresh" @click="fetchStats" title="Refresh stats">
                                 <i class="bi bi-arrow-clockwise me-1"></i>Refresh
                             </button>
                         </div>

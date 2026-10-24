@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Admin\User;
+use App\Traits\AdminActivityLogsTrait;
 use App\Traits\AuditLogsTrait;
 use App\Traits\ConstantsTrait;
 use App\Enums\ActionType;
@@ -15,7 +16,7 @@ use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
-    use AuditLogsTrait, ConstantsTrait;
+    use AdminActivityLogsTrait, AuditLogsTrait, ConstantsTrait;
 
     public function profile()
     {
@@ -174,12 +175,13 @@ class ProfileController extends Controller
         $user = User::findOrFail($auth_user->id);
 
         $request->validate([
-            'avatar' => 'required|image|mimes:png,jpg,jpeg|max:2048',
+            'avatar' => 'required|image|mimes:png,jpg,jpeg|max:5120',
         ]);
 
         // Delete old avatar if exists
-        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
-            Storage::disk('public')->delete($user->avatar);
+        $oldAvatar = $user->getRawOriginal('avatar');
+        if ($oldAvatar && Storage::disk('public')->exists($oldAvatar)) {
+            Storage::disk('public')->delete($oldAvatar);
         }
 
         $path = $request->file('avatar')->store('avatars', 'public');
@@ -192,7 +194,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'message' => 'Avatar updated successfully!',
-            'avatar' => $path,
+            'avatar' => Storage::disk('public')->url($path),
         ]);
     }
 
@@ -201,8 +203,9 @@ class ProfileController extends Controller
         $auth_user = $this->callLoggedUser();
         $user = User::findOrFail($auth_user->id);
 
-        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
-            Storage::disk('public')->delete($user->avatar);
+        $oldAvatar = $user->getRawOriginal('avatar');
+        if ($oldAvatar && Storage::disk('public')->exists($oldAvatar)) {
+            Storage::disk('public')->delete($oldAvatar);
         }
 
         $user->update([

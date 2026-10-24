@@ -56,7 +56,7 @@ const handleSubmit = (values, actions) => {
             <div class="modal-content border-0 p-3">
                 <div class="modal-body">
                     <h6 class="text-center">New School Year</h6>
-                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                    <button class="btn-close" title="Close" data-bs-dismiss="modal"></button>
                     <Form @submit="handleSubmit" v-slot:default="{ errors }">
                         <div class="row">
                             <div class="col-md-6">
@@ -114,7 +114,7 @@ const handleSubmit = (values, actions) => {
 
                         <hr>
 
-                        <button type="submit" class="btn btn-primary btn-sm">
+                        <button type="submit" title="Add school year" class="btn btn-primary btn-sm">
                             <i class="bi bi-floppy me-1"></i>Submit
                         </button>
                     </Form>

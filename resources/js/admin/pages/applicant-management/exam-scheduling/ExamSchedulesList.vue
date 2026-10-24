@@ -565,13 +565,13 @@ onMounted(async () => {
         <div class="container-fluid">
             <div class="d-flex justify-content-between mb-2">
                 <div class="d-flex align-items-center gap-2">
-                    <button v-if="permissions.create" class="btn btn-primary btn-sm" @click="resetForm" data-bs-toggle="modal" data-bs-target="#scheduleModal">
+                    <button v-if="permissions.create" class="btn btn-primary btn-sm" @click="resetForm" title="Create schedule" data-bs-toggle="modal" data-bs-target="#scheduleModal">
                         <i class="bi bi-plus-circle me-1"></i>Create Schedule
                     </button>
-                    <button v-if="permissions.update && canAccess('STE')" class="btn btn-outline-primary btn-sm" @click="autoAssign(steProgramId)">
+                    <button v-if="permissions.update && canAccess('STE')" class="btn btn-outline-primary btn-sm" @click="autoAssign(steProgramId)" title="Auto-assign applicants to STE schedules">
                         <i class="bi bi-lightning-fill me-1"></i>Auto Assign STE
                     </button>
-                    <button v-if="permissions.update && canAccess('SPICT')" class="btn btn-outline-primary btn-sm" @click="autoAssign(spictProgramId)">
+                    <button v-if="permissions.update && canAccess('SPICT')" class="btn btn-outline-primary btn-sm" @click="autoAssign(spictProgramId)" title="Auto-assign applicants to SPICT schedules">
                         <i class="bi bi-lightning-fill me-1"></i>Auto Assign SPICT
                     </button>
                 </div>
@@ -701,7 +701,7 @@ onMounted(async () => {
             <div class="modal-content border-0 p-3">
                 <div class="modal-body">
                     <h6 class="text-center">{{ isEditing ? 'Update Schedule' : 'New Schedule' }}</h6>
-                    <button type="button" class="btn-close" @click="closeScheduleModal" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" title="Close" @click="closeScheduleModal" data-bs-dismiss="modal" aria-label="Close"></button>
                     <form @submit.prevent="submitSchedule">
                         <div class="mb-3">
                             <label class="form-label required">School Year</label>
@@ -735,8 +735,8 @@ onMounted(async () => {
                         </div>
                         <hr>
                         <div class="d-flex justify-content-between">
-                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary btn-sm" :disabled="submitting">
+                            <button type="button" class="btn btn-secondary btn-sm" title="Cancel" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary btn-sm" :disabled="submitting" title="Save schedule">
                                 <span v-if="submitting" class="spinner-border spinner-border-sm me-1" role="status"></span>
                                 <i v-else class="bi bi-floppy me-1"></i>{{ isEditing ? 'Update' : 'Submit' }}
                             </button>
@@ -753,7 +753,7 @@ onMounted(async () => {
             <div class="modal-content border-0 p-3">
                 <div class="modal-body">
                     <h6 class="text-center">Manual Applicant Assignment</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" title="Close" data-bs-dismiss="modal" aria-label="Close"></button>
                     <div class="table-responsive" style="max-height: 400px">
                         <table class="table table-sm table-hover align-middle">
                             <thead class="bg-light sticky-top">
@@ -791,8 +791,8 @@ onMounted(async () => {
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="text-muted small">{{ selectedApplicants.length }} selected</span>
                         <div>
-                            <button type="button" class="btn btn-secondary btn-sm me-1" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-primary btn-sm" @click="assignApplicants">Assign Selected</button>
+                            <button type="button" class="btn btn-secondary btn-sm me-1" title="Cancel" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary btn-sm" @click="assignApplicants" title="Assign applicants">Assign Selected</button>
                         </div>
                     </div>
                 </div>

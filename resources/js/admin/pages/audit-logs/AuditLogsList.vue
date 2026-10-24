@@ -280,7 +280,7 @@ onMounted(async () => {
                                             </td>
                                             <td class="align-middle">{{ log.description }}</td>
                                             <td class="text-center align-middle actions-cell">
-                                                <button class="btn btn-info btn-sm"
+                                                <button class="btn btn-info btn-sm" title="View"
                                                     @click="viewLog(log)" data-bs-toggle="modal"
                                                     data-bs-target="#view-audit-log">
                                                     <i class="bi bi-eye-fill"></i>

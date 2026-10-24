@@ -567,7 +567,8 @@ const handleSubmit = async () => {
                                         :class="{ 'border-success': declarationCompleted }">
                                         <small class="text-muted">Complete the Health Declaration Form online.</small>
                                         <button type="button" class="btn btn-warning btn-sm fw-semibold"
-                                            data-bs-toggle="modal" data-bs-target="#ste-declaration-modal">
+                                            data-bs-toggle="modal" data-bs-target="#ste-declaration-modal"
+                                            title="Open health declaration">
                                             <i class="bi bi-pencil-square me-1"></i>
                                             {{ declarationCompleted ? 'View / Edit Declaration' : 'Complete Health Declaration Form' }}
                                         </button>
@@ -612,7 +613,7 @@ const handleSubmit = async () => {
                         </router-link>
                         <button type="submit" id="submitBtn"
                             class="btn btn-success btn-sm fw-semibold shadow-sm"
-                            :disabled="submitting">
+                            :disabled="submitting" title="Submit application">
                             <span v-if="!submitting">
                                 <i class="bi bi-send-fill me-1"></i>Submit Application
                             </span>
@@ -642,7 +643,7 @@ const handleSubmit = async () => {
                                 <h5 class="hd-header__title mb-0">HEALTH DECLARATION FORM</h5>
                                 <p class="hd-header__subtitle mb-0">Special Curricular Program in Science &mdash; Carranglan National High School</p>
                             </div>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" title="Close"></button>
                         </div>
                         <div class="hd-divider"></div>
 
@@ -788,13 +789,13 @@ const handleSubmit = async () => {
                                             </div>
                                             <div class="d-flex gap-2 mt-2 flex-wrap">
                                                 <button type="button" class="btn btn-warning btn-sm fw-semibold"
-                                                    @click="openSignaturePad">
+                                                    @click="openSignaturePad" title="Draw signature">
                                                     <i class="bi bi-pencil-square me-1"></i>
                                                     {{ healthSignature ? 'Redraw Signature' : 'Sign Here' }}
                                                 </button>
                                                 <button v-if="healthSignature" type="button"
                                                     class="btn btn-outline-secondary btn-sm"
-                                                    @click="removeSignature">
+                                                    @click="removeSignature" title="Remove signature">
                                                     <i class="bi bi-eraser me-1"></i>Clear
                                                 </button>
                                             </div>
@@ -841,15 +842,15 @@ const handleSubmit = async () => {
                         </div>
 
                         <div class="modal-footer hd-actions">
-                            <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold" @click="printDeclaration">
+                            <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold" @click="printDeclaration" title="Print declaration">
                                 <i class="bi bi-printer-fill me-1"></i>Print
                             </button>
-                            <button type="button" class="btn btn-secondary btn-sm fw-semibold" data-bs-dismiss="modal">
+                            <button type="button" class="btn btn-secondary btn-sm fw-semibold" data-bs-dismiss="modal" title="Close">
                                 <i class="bi bi-x-circle-fill me-1"></i>Close
                             </button>
                             <button type="button" class="btn hd-btn-primary btn-sm fw-semibold"
                                 :disabled="!canSaveDeclaration"
-                                @click="saveDeclaration">
+                                @click="saveDeclaration" title="Save declaration">
                                 <i class="bi bi-check-circle-fill me-1"></i>Submit Health Declaration
                             </button>
                         </div>
@@ -865,7 +866,7 @@ const handleSubmit = async () => {
                             <h6 class="modal-title fw-semibold">
                                 <i class="bi bi-pen me-2"></i>Draw Your Signature
                             </h6>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" title="Close"></button>
                         </div>
                         <div class="modal-body">
                             <SignaturePad ref="signaturePadRef" />
@@ -876,15 +877,15 @@ const handleSubmit = async () => {
                         </div>
                         <div class="modal-footer border-0">
                             <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold"
-                                @click="clearSignature">
+                                @click="clearSignature" title="Clear signature">
                                 <i class="bi bi-eraser me-1"></i>Clear
                             </button>
                             <button type="button" class="btn btn-secondary btn-sm fw-semibold"
-                                data-bs-dismiss="modal">
+                                data-bs-dismiss="modal" title="Close">
                                 Cancel
                             </button>
                             <button type="button" class="btn btn-warning btn-sm fw-semibold"
-                                @click="applySignature">
+                                @click="applySignature" title="Apply signature">
                                 <i class="bi bi-check-lg me-1"></i>Use This Signature
                             </button>
                         </div>

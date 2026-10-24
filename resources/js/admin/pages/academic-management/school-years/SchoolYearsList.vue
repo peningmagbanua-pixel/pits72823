@@ -143,7 +143,7 @@ onMounted(() => {
         <div class="container-fluid">
             <div class="d-flex justify-content-between mb-2">
                 <div v-if="permissions.create" class="d-flex">
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#new-school-year">
+                    <button class="btn btn-primary btn-sm" title="Add new school year" data-bs-toggle="modal" data-bs-target="#new-school-year">
                         <i class="bi bi-plus-circle me-1"></i>New School Year
                     </button>
                 </div>
@@ -227,19 +227,19 @@ onMounted(() => {
                                             </td>
                                             <td class="align-middle text-center actions-cell">
                                                 <template v-if="showDeleted">
-                                                    <button v-if="permissions.delete" type="button"
+                                                    <button v-if="permissions.delete" type="button" title="Restore"
                                                         class="btn btn-success btn-sm"
                                                         @click="restoreSchoolYear(school_year.id)">
                                                         <i class="bi bi-arrow-counterclockwise"></i>
                                                     </button>
                                                 </template>
                                                 <template v-else>
-                                                    <button v-if="permissions.update" class="btn btn-secondary btn-sm me-1"
+                                                    <button v-if="permissions.update" title="Edit" class="btn btn-secondary btn-sm me-1"
                                                         @click="editSchoolYear(school_year)"
                                                         data-bs-toggle="modal" data-bs-target="#update-school-year">
                                                         <i class="bi bi-pencil-square"></i>
                                                     </button>
-                                                    <button v-if="permissions.delete" type="button"
+                                                    <button v-if="permissions.delete" type="button" title="Delete"
                                                         class="btn btn-danger btn-sm"
                                                         @click="deleteSchoolYear(school_year.id)">
                                                         <i class="bi bi-trash-fill"></i>

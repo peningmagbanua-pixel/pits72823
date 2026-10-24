@@ -82,6 +82,7 @@ onMounted(() => {
                                             class="accordion-button collapsed"
                                             :class="{ collapsed: activeIndex !== index }"
                                             type="button"
+                                            :title="activeIndex === index ? 'Hide answer' : 'Show answer'"
                                             @click="toggleFaq(index)"
                                         >
                                             <span class="fw-medium">{{ faq.question }}</span>

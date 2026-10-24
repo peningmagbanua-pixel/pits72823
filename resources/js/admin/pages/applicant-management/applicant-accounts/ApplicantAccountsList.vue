@@ -242,18 +242,18 @@ onMounted(() => {
                                             <td class="text-center align-middle actions-cell">
                                                 <template v-if="showDeleted">
                                                     <button v-if="permissions.delete" type="button" class="btn btn-success btn-sm"
-                                                        @click="restoreApplicant(applicant.id)">
+                                                        @click="restoreApplicant(applicant.id)" title="Restore">
                                                         <i class="bi bi-arrow-counterclockwise"></i>
                                                     </button>
                                                 </template>
                                                 <template v-else>
                                                     <button v-if="permissions.update" class="btn btn-secondary btn-sm me-1"
-                                                        @click="editApplicant(applicant)"
+                                                        @click="editApplicant(applicant)" title="Edit"
                                                         data-bs-toggle="modal" data-bs-target="#update-applicant-account">
                                                         <i class="bi bi-pencil-square"></i>
                                                     </button>
                                                     <button v-if="permissions.delete" type="button" class="btn btn-danger btn-sm"
-                                                        @click="deleteApplicant(applicant.id)">
+                                                        @click="deleteApplicant(applicant.id)" title="Delete">
                                                         <i class="bi bi-trash-fill"></i>
                                                     </button>
                                                 </template>

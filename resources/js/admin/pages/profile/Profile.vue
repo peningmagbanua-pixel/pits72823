@@ -119,8 +119,8 @@ const handleAvatarChange = (event) => {
         return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-        sweetAlert('error', 'Image size must be less than 2MB.');
+    if (file.size > 5 * 1024 * 1024) {
+        sweetAlert('error', 'Image size must be less than 5MB.');
         return;
     }
 
@@ -255,12 +255,12 @@ onMounted(() => {
                                 <!-- Dropdown Menu -->
                                 <div v-if="avatarMenuOpen" class="dropdown-menu dropdown-menu-end shadow mt-1" style="min-width: 180px; position: absolute; top: 100%; right: 0; z-index: 1000; display: block;">
                                     <div class="dropdown-header text-muted small">Profile Picture</div>
-                                    <button type="button" class="dropdown-item d-flex align-items-center gap-2" @click="changeAvatar">
+                                    <button type="button" class="dropdown-item d-flex align-items-center gap-2" @click="changeAvatar" title="Change profile picture">
                                         <i class="bi bi-camera text-muted"></i>
                                         <span>Change Avatar</span>
                                     </button>
                                     <hr class="dropdown-divider">
-                                    <button v-if="user.avatar" type="button" class="dropdown-item d-flex align-items-center gap-2 text-danger" @click="deleteAvatar">
+                                    <button v-if="user.avatar" type="button" class="dropdown-item d-flex align-items-center gap-2 text-danger" @click="deleteAvatar" title="Delete profile picture">
                                         <i class="bi bi-trash"></i>
                                         <span>Delete Avatar</span>
                                     </button>
@@ -277,13 +277,15 @@ onMounted(() => {
                                 <button type="button"
                                         class="btn btn-primary btn-sm"
                                         @click="uploadAvatar"
+                                        title="Upload selected avatar"
                                         :disabled="uploadingAvatar">
                                     <span v-if="uploadingAvatar" class="spinner-border spinner-border-sm me-1"></span>
                                     <i v-else class="bi bi-upload me-1"></i>Upload
                                 </button>
                                 <button type="button"
                                         class="btn btn-outline-secondary btn-sm"
-                                        @click="cancelAvatar">
+                                        @click="cancelAvatar"
+                                        title="Cancel avatar change">
                                     <i class="bi bi-x me-1"></i>Cancel
                                 </button>
                             </div>
@@ -360,7 +362,7 @@ onMounted(() => {
                                            placeholder="Enter email">
                                     <span class="invalid-feedback">{{ errors.email }}</span>
                                 </div>
-                                <button type="submit" class="btn btn-primary btn-sm">
+                                <button type="submit" class="btn btn-primary btn-sm" title="Update profile information">
                                     <i class="bi bi-floppy me-1"></i>Update
                                 </button>
                             </Form>
@@ -397,7 +399,7 @@ onMounted(() => {
                                            placeholder="Confirm new password">
                                     <span class="invalid-feedback">{{ errors.new_password_confirmation }}</span>
                                 </div>
-                                <button type="submit" class="btn btn-primary btn-sm">
+                                <button type="submit" class="btn btn-primary btn-sm" title="Change account password">
                                     <i class="bi bi-key-fill me-1"></i>Change
                                 </button>
                             </Form>

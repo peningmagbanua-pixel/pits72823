@@ -268,7 +268,7 @@ const actionBadgeClass = (action) => {
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             <small class="text-muted">Applied: {{ applicant.created_at }}</small>
-                            <button class="btn-close" data-bs-dismiss="modal"></button>
+                            <button class="btn-close" title="Close" data-bs-dismiss="modal"></button>
                         </div>
                     </div>
 
@@ -276,19 +276,19 @@ const actionBadgeClass = (action) => {
                     <ul class="nav nav-tabs nav-tabs-sm mb-3" style="font-size: 13px;">
                         <li class="nav-item">
                             <button class="nav-link" :class="{ active: activeTab === 'details' }"
-                                @click="switchTab('details')">
+                                @click="switchTab('details')" title="View details">
                                 <i class="bi bi-person-fill me-1"></i>Details
                             </button>
                         </li>
                         <li class="nav-item">
                             <button class="nav-link" :class="{ active: activeTab === 'documents' }"
-                                @click="switchTab('documents')">
+                                @click="switchTab('documents')" title="View documents">
                                 <i class="bi bi-folder-fill me-1"></i>Documents
                             </button>
                         </li>
                         <li class="nav-item">
                             <button class="nav-link" :class="{ active: activeTab === 'activity' }"
-                                @click="switchTab('activity')">
+                                @click="switchTab('activity')" title="View activity log">
                                 <i class="bi bi-clock-history me-1"></i>Activity Log
                             </button>
                         </li>
@@ -389,7 +389,7 @@ const actionBadgeClass = (action) => {
                                         Requirement removed
                                     </span>
                                     <template v-if="doc.completed">
-                                        <button class="btn btn-outline-danger btn-sm w-100" @click="openDeclaration">
+                                        <button class="btn btn-outline-danger btn-sm w-100" @click="openDeclaration" title="View declaration">
                                             <i class="bi bi-eye me-1"></i>View Declaration
                                         </button>
                                     </template>
@@ -408,7 +408,7 @@ const actionBadgeClass = (action) => {
                     <div v-show="activeTab === 'activity'">
                         <div class="d-flex align-items-center justify-content-between mb-2">
                             <div class="section-label mb-0"><i class="bi bi-clock-history me-1"></i> Activity Log</div>
-                            <button class="btn btn-outline-secondary btn-sm" @click="fetchActivityLogs" :disabled="logsLoading">
+                            <button class="btn btn-outline-secondary btn-sm" @click="fetchActivityLogs" :disabled="logsLoading" title="Refresh activity log">
                                 <i class="bi bi-arrow-clockwise me-1"></i>Refresh
                             </button>
                         </div>
@@ -449,19 +449,19 @@ const actionBadgeClass = (action) => {
                         <button v-if="props.canUpdate && applicant.application_status === 'pending'"
                             class="btn btn-success btn-sm"
                             :disabled="statusUpdating"
-                            @click="updateStatus('approved')">
+                            @click="updateStatus('approved')" title="Approve application">
                             <i class="bi bi-check-circle-fill me-1"></i>Approve
                         </button>
                         <button v-if="props.canUpdate && applicant.application_status === 'pending'"
                             class="btn btn-danger btn-sm"
                             :disabled="statusUpdating"
-                            @click="updateStatus('rejected')">
+                            @click="updateStatus('rejected')" title="Reject application">
                             <i class="bi bi-x-circle-fill me-1"></i>Reject
                         </button>
                         <button v-if="props.canUpdate && applicant.application_status !== 'pending'"
                             class="btn btn-warning btn-sm"
                             :disabled="statusUpdating"
-                            @click="updateStatus('pending')">
+                            @click="updateStatus('pending')" title="Reset status to pending">
                             <i class="bi bi-arrow-counterclockwise me-1"></i>Reset to Pending
                         </button>
                     </div>
@@ -481,7 +481,7 @@ const actionBadgeClass = (action) => {
                         </h5>
                         <p class="text-muted small mb-0">Special Curricular Program in Science — Carranglan National High School</p>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" title="Close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body" style="font-size:13px;">
 
@@ -591,7 +591,7 @@ const actionBadgeClass = (action) => {
 
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary btn-sm" title="Close" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>

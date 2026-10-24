@@ -61,7 +61,7 @@ class GoogleController extends Controller
         if ($user) {
             $user->update([
                 'google_id' => $user->google_id ?? $googleUser->id,
-                'avatar' => $user->avatar ?? $googleUser->avatar,
+                'avatar' => $user->getRawOriginal('avatar') ?? $googleUser->avatar,
                 'email_verified_at' => $user->email_verified_at ?? now(),
                 'last_login_at' => now(),
                 'last_login_ip' => $request->ip(),

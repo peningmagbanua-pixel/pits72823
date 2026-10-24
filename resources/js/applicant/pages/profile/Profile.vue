@@ -118,7 +118,7 @@ onMounted(() => {
                                     <input v-model="profile.email" type="email" class="form-control" required>
                                 </div>
                                 <div class="text-end">
-                                    <button type="submit" class="btn btn-primary px-4">
+                                    <button type="submit" class="btn btn-primary px-4" title="Update profile">
                                         Update Profile
                                     </button>
                                 </div>
@@ -148,7 +148,7 @@ onMounted(() => {
                                     <input v-model="passwordForm.new_password_confirmation" type="password" class="form-control" required>
                                 </div>
                                 <div class="text-end">
-                                    <button type="submit" class="btn btn-outline-danger px-4">
+                                    <button type="submit" class="btn btn-outline-danger px-4" title="Change password">
                                         Change Password
                                     </button>
                                 </div>

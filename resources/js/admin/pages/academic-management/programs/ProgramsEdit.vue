@@ -59,7 +59,7 @@ const handleSubmit = (values, actions) => {
             <div class="modal-content border-0 p-3">
                 <div class="modal-body">
                     <h6 class="text-center">Update Program</h6>
-                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                    <button class="btn-close" title="Close" data-bs-dismiss="modal"></button>
                     <Form @submit="handleSubmit" v-slot:default="{ errors }">
                         <div class="form-group">
                             <label for="initials" class="form-label required">Initials</label>
@@ -96,7 +96,7 @@ const handleSubmit = (values, actions) => {
 
                         <hr>
 
-                        <button type="submit" class="btn btn-primary btn-sm">
+                        <button type="submit" title="Update program" class="btn btn-primary btn-sm">
                             <i class="bi bi-floppy me-1"></i>Update
                         </button>
                     </Form>

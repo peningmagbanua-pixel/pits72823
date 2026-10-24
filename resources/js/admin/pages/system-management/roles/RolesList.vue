@@ -157,12 +157,12 @@ onMounted(() => {
         <div class="container-fluid">
             <div class="d-flex justify-content-between mb-2">
                 <div class="d-flex">
-                    <button v-if="permissions.create" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#new-role">
+                    <button v-if="permissions.create" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#new-role" title="Add new role">
                         <i class="bi bi-plus-circle me-1"></i>New Role
                     </button>
                 </div>
                 <div class="d-flex">
-                    <button v-if="permissions.browse" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#permission-matrix">
+                    <button v-if="permissions.browse" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#permission-matrix" title="Permission matrix">
                         <i class="bi bi-grid-3x3-gap-fill me-1"></i>Permission Matrix
                     </button>
                 </div>
@@ -238,7 +238,7 @@ onMounted(() => {
                                             <td class="align-middle">{{ role.name }}</td>
                                             <td class="text-center align-middle actions-cell">
                                                 <template v-if="showDeleted">
-                                                    <button v-if="permissions.delete" type="button" class="btn btn-success btn-sm"
+                                                    <button v-if="permissions.delete" type="button" class="btn btn-success btn-sm" title="Restore"
                                                         @click="restoreRole(role.id)">
                                                         <i class="bi bi-arrow-counterclockwise"></i>
                                                     </button>
@@ -254,12 +254,12 @@ onMounted(() => {
                                                         data-bs-target="#manage-permissions" title="Manage Permissions">
                                                         <i class="bi bi-shield-lock"></i>
                                                     </button>
-                                                    <button v-if="permissions.update" class="btn btn-secondary btn-sm me-1"
+                                                    <button v-if="permissions.update" class="btn btn-secondary btn-sm me-1" title="Edit"
                                                         @click="editRole(role)" data-bs-toggle="modal"
                                                         data-bs-target="#update-role">
                                                         <i class="bi bi-pencil-square"></i>
                                                     </button>
-                                                    <button v-if="permissions.delete" type="button" class="btn btn-danger btn-sm"
+                                                    <button v-if="permissions.delete" type="button" class="btn btn-danger btn-sm" title="Delete"
                                                         @click="deleteRole(role.id)">
                                                         <i class="bi bi-trash-fill"></i>
                                                     </button>
