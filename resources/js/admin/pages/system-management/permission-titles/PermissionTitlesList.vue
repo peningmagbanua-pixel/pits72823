@@ -143,13 +143,6 @@ onMounted(() => {
     <div class="app-content">
         <div class="container-fluid">
            <div class="d-flex justify-content-between mb-2">
-                <div class="d-flex">
-                    <button v-if="permissions.create" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#new-permission-title" title="Add new permission title">
-                        <i class="bi bi-plus-circle me-1"></i>New Permission Title
-                    </button>
-                </div>
-            </div>
-            <div class="d-flex justify-content-between mb-2">
                 <div class="d-flex align-items-center gap-2">
                     <label class="form-label small mb-0">View:</label>
                     <select v-model="showDeleted" class="form-select form-select-sm" style="width: auto;">
