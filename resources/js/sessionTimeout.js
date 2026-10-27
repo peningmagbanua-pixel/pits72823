@@ -7,10 +7,22 @@ import { Modal } from 'bootstrap';
 // session. Values come from Admin Settings (settings table) →
 // window.__SESSION_TIMEOUT__ (injected by the dashboard blades), falling
 // back to SESSION_TIMEOUT_MINUTES and SESSION_WARNING_MINUTES.
+//
+// The warning modal uses a static backdrop, so it must never be able to get
+// stuck: the modal is never shown from a hidden tab (background timers and
+// transitions are throttled there), every dismissal is verified against the
+// DOM and force-removed when Bootstrap refuses the hide (its hide() is a
+// silent no-op while a show transition is pending), and failed or hung status
+// pings always re-arm the timers so the state machine can never die silently.
 
 const HEARTBEAT_MIN_INTERVAL = 30000; // min ms between activity pings
 const SYNC_MIN_INTERVAL = 10000; // min ms between status re-syncs
 const ACTIVITY_THROTTLE = 1000; // local throttle (mousemove storms)
+const REQUEST_TIMEOUT = 15000; // ms before a session ping is considered dead
+const ACTIVE_RECHECK_INTERVAL = 2000; // warning re-check while the user is active
+const HIDDEN_RECHECK_INTERVAL = 1000; // warning re-check while the tab is hidden
+const CLEANUP_DELAY = 600; // ms to wait for Bootstrap's hide() before forcing
+const NAV_RETRY_DELAY = 5000; // ms before retrying a stuck login redirect
 
 let started = false;
 let idleTimer = null;
@@ -18,6 +30,8 @@ let warnTimer = null;
 let deadline = 0; // client ms epoch of the server-side session expiration
 let warningVisible = false;
 let loggingOut = false;
+let recovering = false;
+let hidingUntil = 0; // ms epoch until which a dismissal-driven hide settles
 let lastActivity = 0;
 let lastHeartbeatAt = 0;
 let lastSyncAt = 0;
@@ -64,6 +78,10 @@ const ensureModal = () => {
                 </div>
             </div>
         </div>`);
+    // Keep the flag mirroring Bootstrap's real modal state.
+    modalEl().addEventListener('hidden.bs.modal', () => {
+        warningVisible = false;
+    });
 };
 
 const clearTimers = () => {
@@ -73,23 +91,45 @@ const clearTimers = () => {
     warnTimer = null;
 };
 
+const navigateToLogin = () => {
+    window.location.href = loginPath;
+    // If the navigation cannot commit (tab frozen/offline right after wake),
+    // retry once so the app never stays parked on a dead session.
+    setTimeout(() => {
+        window.location.href = loginPath;
+    }, NAV_RETRY_DELAY);
+};
+
 const redirectToLogin = () => {
     if (loggingOut) return;
     loggingOut = true;
     clearTimers();
-    window.location.href = loginPath;
+    navigateToLogin();
 };
+
+// Another tab rotated the CSRF token (session invalidated/expired there), so
+// every request from this page now fails with 419. Reloading picks up a fresh
+// token and re-evaluates the session; the middleware redirects to login if it
+// is gone.
+const recoverFromTokenMismatch = () => {
+    if (recovering) return;
+    recovering = true;
+    clearTimers();
+    window.location.reload();
+};
+
+const isTokenMismatch = (error) => error?.response?.status === 419;
 
 const doLogout = async () => {
     if (loggingOut) return;
     loggingOut = true;
     clearTimers();
     try {
-        await window.axios.post(logoutUrl);
+        await window.axios.post(logoutUrl, undefined, { timeout: REQUEST_TIMEOUT });
     } catch (e) {
         // Session may already be invalid — still redirect to the login page.
     }
-    window.location.href = loginPath;
+    navigateToLogin();
 };
 
 const applyRemaining = (seconds) => {
@@ -101,11 +141,20 @@ const scheduleWarning = () => {
     idleTimer = null;
     if (!deadline) return;
     const delay = deadline - warningMs() - Date.now();
-    if (delay <= 0) {
-        showWarning();
-    } else {
+    if (delay > 0) {
         idleTimer = setTimeout(showWarning, delay);
+        return;
     }
+    // Already inside the warning window. While the user is demonstrably
+    // active, keep re-checking instead of flashing the blocking modal back on
+    // top of their clicks — the in-flight heartbeat extends the deadline; if
+    // it never succeeds the session 401s anyway. Once activity stops for a
+    // couple of seconds, show the warning.
+    if (Date.now() - lastActivity < ACTIVE_RECHECK_INTERVAL) {
+        idleTimer = setTimeout(scheduleWarning, ACTIVE_RECHECK_INTERVAL);
+        return;
+    }
+    showWarning();
 };
 
 const tickCountdown = () => {
@@ -119,22 +168,105 @@ const tickCountdown = () => {
     }
 };
 
-const dismissWarning = () => {
-    if (!warningVisible) return;
+const isWarningUp = () => {
+    if (warningVisible) return true;
+    const el = modalEl();
+    // The flag can desync from Bootstrap's actual state (hide() silently
+    // no-ops mid-show). Trust the DOM too so a stuck backdrop is dismissed
+    // even when the flag says the modal is already gone.
+    return Boolean(el && el.classList.contains('show'));
+};
+
+const forceRemoveWarningModal = (el) => {
+    const instance = Modal.getInstance(el);
+    if (instance) instance.dispose();
+    el.remove();
+    document.querySelectorAll('.modal-backdrop').forEach((backdrop) => backdrop.remove());
+    document.body.classList.remove('modal-open');
+    resetBodyScrollLock();
     warningVisible = false;
     clearInterval(warnTimer);
     warnTimer = null;
+};
+
+// Mirror Bootstrap's ScrollBarHelper.reset() — show() locks body scrolling
+// with inline styles that a forced removal would otherwise leave behind.
+const resetBodyScrollLock = () => {
+    const restore = (element, property) => {
+        const saved = element.getAttribute(`data-bs-${property}`);
+        if (saved === null) {
+            element.style.removeProperty(property);
+            return;
+        }
+        element.style.setProperty(property, saved);
+        element.removeAttribute(`data-bs-${property}`);
+    };
+    document.body.style.removeProperty('overflow');
+    restore(document.body, 'padding-right');
+    document.querySelectorAll('.fixed-top, .fixed-bottom, .is-fixed, .sticky-top').forEach((element) => {
+        restore(element, 'padding-right');
+    });
+    document.querySelectorAll('.sticky-top').forEach((element) => {
+        restore(element, 'margin-right');
+    });
+};
+
+// Bootstrap's hide() returns silently while the modal is mid-show
+// (_isTransitioning), which happens exactly when a throttled background tab
+// flushes the warning timer just before the user returns. If Bootstrap hasn't
+// finished hiding the modal a moment later, tear it down by hand so the
+// backdrop can never keep the page blocked.
+const scheduleCleanup = (el) => {
+    setTimeout(() => {
+        if (!el.isConnected) return;
+        // Never tear down state another modal legitimately owns.
+        if (document.querySelector('.modal.show:not(#session-timeout-modal)')) return;
+        const instance = Modal.getInstance(el);
+        const stuck =
+            el.classList.contains('show') ||
+            Boolean(document.querySelector('.modal-backdrop')) ||
+            document.body.classList.contains('modal-open') ||
+            Boolean(instance && (instance._isShown || instance._isTransitioning));
+        if (stuck) forceRemoveWarningModal(el);
+    }, CLEANUP_DELAY);
+};
+
+const dismissWarning = () => {
+    warningVisible = false;
+    hidingUntil = Date.now() + CLEANUP_DELAY;
+    clearInterval(warnTimer);
+    warnTimer = null;
     const el = modalEl();
-    if (el) Modal.getOrCreateInstance(el).hide();
+    if (!el) return;
+    const instance = Modal.getInstance(el);
+    if (instance) instance.hide(); // may no-op mid-show — the cleanup below finishes the job
+    scheduleCleanup(el);
 };
 
 const showWarning = () => {
     if (warningVisible || loggingOut) return;
+    if (document.visibilityState !== 'visible') {
+        // Never show the blocking modal from a background tab — that is what
+        // created the show/dismiss race in the first place. Re-check while
+        // hidden; the visibilitychange handler also re-arms on return.
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(showWarning, HIDDEN_RECHECK_INTERVAL);
+        return;
+    }
+    if (Date.now() < hidingUntil) {
+        // Bootstrap is still settling a dismissal — retrying show() now would
+        // silently no-op and desync the flag. Re-check once it settles.
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(showWarning, hidingUntil - Date.now() + 50);
+        return;
+    }
+    ensureModal(); // in case a force-removal deleted it earlier
+    const modal = modalEl();
+    if (!modal) return;
     warningVisible = true;
     const el = countdownEl();
     if (el) el.textContent = formatCountdown(deadline - Date.now());
-    const modal = modalEl();
-    if (modal) Modal.getOrCreateInstance(modal).show();
+    Modal.getOrCreateInstance(modal).show();
     warnTimer = setInterval(tickCountdown, 250);
 };
 
@@ -143,17 +275,19 @@ const showWarning = () => {
 const confirmExpiry = async () => {
     if (loggingOut) return;
     try {
-        const { data } = await window.axios.get(statusUrl);
+        const { data } = await window.axios.get(statusUrl, { timeout: REQUEST_TIMEOUT });
         applyRemaining(data.remaining_seconds);
         if (deadline - Date.now() > 0) {
-            warningVisible = false;
-            const modal = modalEl();
-            if (modal) Modal.getOrCreateInstance(modal).hide();
+            dismissWarning();
             scheduleWarning();
             return;
         }
         doLogout();
     } catch (e) {
+        if (isTokenMismatch(e)) {
+            recoverFromTokenMismatch();
+            return;
+        }
         redirectToLogin(); // Session already expired server-side.
     }
 };
@@ -164,33 +298,48 @@ const sendHeartbeat = async () => {
     if (now - lastHeartbeatAt < HEARTBEAT_MIN_INTERVAL) return;
     lastHeartbeatAt = now;
     try {
-        const { data } = await window.axios.post(activityUrl);
+        const { data } = await window.axios.post(activityUrl, undefined, { timeout: REQUEST_TIMEOUT });
         if (loggingOut) return;
         applyRemaining(data.remaining_seconds);
         if (warningVisible && deadline - Date.now() > warningMs()) {
             dismissWarning();
         }
-        scheduleWarning();
     } catch (e) {
+        if (isTokenMismatch(e)) {
+            recoverFromTokenMismatch();
+            return;
+        }
         // 401s are handled by the response interceptor below.
+    } finally {
+        // Re-arm even after a failure/hang so the timers never die silently
+        // (this was the path that previously left the UI frozen until reload).
+        if (!loggingOut) scheduleWarning();
     }
 };
 
 const syncStatus = async () => {
     if (loggingOut || !statusUrl) return;
     const now = Date.now();
-    if (now - lastSyncAt < SYNC_MIN_INTERVAL) return;
+    if (now - lastSyncAt < SYNC_MIN_INTERVAL) {
+        scheduleWarning(); // throttled: still re-arm from the known deadline
+        return;
+    }
     lastSyncAt = now;
     try {
-        const { data } = await window.axios.get(statusUrl);
+        const { data } = await window.axios.get(statusUrl, { timeout: REQUEST_TIMEOUT });
         if (loggingOut) return;
         applyRemaining(data.remaining_seconds);
         if (warningVisible && deadline - Date.now() > warningMs()) {
             dismissWarning(); // Kept alive by activity in another tab.
         }
-        scheduleWarning();
     } catch (e) {
+        if (isTokenMismatch(e)) {
+            recoverFromTokenMismatch();
+            return;
+        }
         // 401s are handled by the response interceptor below.
+    } finally {
+        if (!loggingOut) scheduleWarning();
     }
 };
 
@@ -199,7 +348,7 @@ const onActivity = () => {
     const now = Date.now();
     if (now - lastActivity < ACTIVITY_THROTTLE) return;
     lastActivity = now;
-    if (warningVisible) {
+    if (isWarningUp()) {
         // User became active during the warning period — react immediately;
         // the deadline is extended once the server confirms the ping below.
         dismissWarning();
@@ -214,7 +363,11 @@ export const sessionActivity = () => onActivity();
 const onVisibilityChange = () => {
     // Becoming visible is not activity by itself — re-sync with the server
     // so the countdown matches reality after a throttled background tab.
-    if (document.visibilityState === 'visible') syncStatus();
+    // Re-arm first: scheduleWarning works from the known deadline even when
+    // the sync below is throttled or the network is still waking up.
+    if (document.visibilityState !== 'visible') return;
+    scheduleWarning();
+    syncStatus();
 };
 
 const registerInterceptor = () => {

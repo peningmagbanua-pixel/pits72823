@@ -6,7 +6,7 @@
 /**
  * Returns the HTML string for the CNHS spinner.
  * @param {string} size - '' | 'sm' | 'lg'
- * @param {string} variant - '' | 'white' | 'maroon'
+ * @param {string} variant - '' | 'white'
  */
 function cnhsSpinnerHTML(size = '', variant = '') {
     const cls = ['cnhs-spinner', size ? `cnhs-spinner-${size}` : '', variant].filter(Boolean).join(' ');
@@ -46,19 +46,3 @@ function hideCnhsLoader() {
         overlay.classList.remove('active');
     }
 }
-
-/**
- * Replace Bootstrap spinner inside a button with the CNHS spinner.
- * Call this on DOMContentLoaded to swap all .spinner-border elements.
- */
-function replaceBsSpinnersWithCnhs() {
-    document.querySelectorAll('.spinner-border, .spinner-border-sm').forEach(el => {
-        const span = document.createElement('span');
-        const isSmall = el.classList.contains('spinner-border-sm');
-        span.innerHTML = cnhsSpinnerHTML(isSmall ? 'sm' : '');
-        el.replaceWith(span.firstChild);
-    });
-}
-
-// Auto-replace on load
-document.addEventListener('DOMContentLoaded', replaceBsSpinnersWithCnhs);

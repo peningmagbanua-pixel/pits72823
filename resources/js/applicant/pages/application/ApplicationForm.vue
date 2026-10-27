@@ -614,13 +614,7 @@ const handleSubmit = async () => {
                         <button type="submit" id="submitBtn"
                             class="btn btn-success btn-sm fw-semibold shadow-sm"
                             :disabled="submitting" title="Submit application">
-                            <span v-if="!submitting">
-                                <i class="bi bi-send-fill me-1"></i>Submit Application
-                            </span>
-                            <span v-else>
-                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                                Submitting…
-                            </span>
+                            <i class="bi bi-send-fill me-1"></i>Submit Application
                         </button>
                     </div>
                 </div>

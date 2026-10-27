@@ -187,6 +187,60 @@ class MustChangePasswordTest extends TestCase
             ->assertStatus(200);
     }
 
+    public function test_applicant_with_a_pending_password_change_can_log_in_again(): void
+    {
+        $applicant = $this->applicant();
+        $applicant->update(['last_login_at' => now()->subHour()]);
+
+        $this->post('/applicant/login', [
+            'email' => $applicant->email,
+            'password' => 'password',
+        ])->assertRedirect(route('applicant.dashboard'));
+
+        $this->assertAuthenticatedAs($applicant, 'applicant');
+
+        $this->putJson('/api/applicant/profile/change-password', [
+            'current_password' => 'password',
+            'new_password' => 'new-secret-123',
+            'new_password_confirmation' => 'new-secret-123',
+        ])->assertStatus(200);
+
+        $this->assertFalse($applicant->fresh()->must_change_password);
+    }
+
+    public function test_applicant_can_change_the_password_again_after_some_time(): void
+    {
+        $applicant = $this->applicant();
+
+        $this->post('/applicant/login', [
+            'email' => $applicant->email,
+            'password' => 'password',
+        ])->assertRedirect(route('applicant.dashboard'));
+
+        $this->putJson('/api/applicant/profile/change-password', [
+            'current_password' => 'password',
+            'new_password' => 'new-secret-123',
+            'new_password_confirmation' => 'new-secret-123',
+        ])->assertStatus(200);
+
+        $this->post('/applicant/logout');
+
+        $this->travel(30)->minutes();
+
+        $this->post('/applicant/login', [
+            'email' => $applicant->email,
+            'password' => 'new-secret-123',
+        ])->assertRedirect(route('applicant.dashboard'));
+
+        $this->putJson('/api/applicant/profile/change-password', [
+            'current_password' => 'new-secret-123',
+            'new_password' => 'another-secret-456',
+            'new_password_confirmation' => 'another-secret-456',
+        ])->assertStatus(200);
+
+        $this->travelBack();
+    }
+
     public function test_registration_flags_the_new_applicant_for_a_password_change(): void
     {
         $email = Str::uuid().'@example.com';

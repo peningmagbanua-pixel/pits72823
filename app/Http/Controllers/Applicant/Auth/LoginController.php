@@ -44,27 +44,6 @@ class LoginController extends Controller
                     ->with('error', 'Your account is not yet activated. Please wait for admin approval.');
             }
 
-            // Block repeat logins while the password change is still pending.
-            // last_login_at is null only before the very first login, which is
-            // the one session in which the applicant can change the password.
-            if ($applicant->must_change_password && $applicant->last_login_at !== null) {
-                Auth::guard('applicant')->logout();
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
-
-                ActivityLog::logActivity(
-                    $applicant->id,
-                    'login_blocked_must_change_password',
-                    'Login attempt blocked: password must be changed before logging in again',
-                    [],
-                    $request->ip(),
-                    $request->userAgent()
-                );
-
-                return redirect()->route('applicant.login')
-                    ->with('error', 'You must change your password before logging in. Please contact the administrator for assistance.');
-            }
-
             $applicant->update([
                 'last_login_at' => now(),
                 'last_login_ip' => $request->ip(),

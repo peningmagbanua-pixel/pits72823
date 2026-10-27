@@ -40,6 +40,7 @@ function finishLoader() {
 function hideBootOverlay() {
     const overlay = document.getElementById('cnhs-boot-overlay');
     if (!overlay) return;
+    overlay.replaceChildren();
     overlay.classList.add('hidden');
     setTimeout(() => overlay.remove(), 400);
 }

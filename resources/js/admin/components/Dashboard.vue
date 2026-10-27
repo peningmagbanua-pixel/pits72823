@@ -306,10 +306,7 @@ onMounted(() => fetchStats());
                         </div>
                         <div class="card-body py-2 px-3">
 
-                            <div v-if="loading" class="text-center py-3">
-                                <div class="spinner-border text-primary" role="status"></div>
-                                <p class="mt-3 mb-0 text-muted">Loading ...</p>
-                            </div>
+                            <div v-if="loading" class="text-center py-3"></div>
 
                             <div v-else-if="stats.upcoming_exams && stats.upcoming_exams.length > 0">
                                 <div v-for="(exam, idx) in stats.upcoming_exams" :key="exam.id"

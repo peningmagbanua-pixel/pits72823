@@ -90,12 +90,7 @@
                         <span id="submitIcon"><i class="bi bi-person-plus-fill"></i></span>
                         <span id="submitText">Register and Continue</span>
                         <span id="submitSpinner" style="display:none;">
-                            <span class="cnhs-spinner cnhs-spinner-sm white">
-                                <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                                <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                                <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                                <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                            </span>
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
                             Registering…
                         </span>
                     </button>

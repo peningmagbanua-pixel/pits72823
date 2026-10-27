@@ -3386,7 +3386,7 @@ nav[role="navigation"]:not([aria-label]):not([aria-labelledby])::before {
     left: 0;
     height: 3px;
     width: 0%;
-    background: #8B0000;
+    background: #0d6efd;
     z-index: 99999;
     transition: width 0.3s ease, opacity 0.4s ease;
     opacity: 0;
@@ -3419,14 +3419,9 @@ nav[role="navigation"]:not([aria-label]):not([aria-labelledby])::before {
     opacity: 0;
     pointer-events: none;
 }
-#cnhs-boot-overlay .cnhs-spinner {
-    width: 60px;
-    height: 60px;
-    margin-bottom: 16px;
-}
 #cnhs-boot-overlay p {
     font-size: 13px;
-    color: #8B0000;
+    color: #0d6efd;
     font-weight: 600;
     margin: 0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -3436,5 +3431,5 @@ nav[role="navigation"]:not([aria-label]):not([aria-labelledby])::before {
     background: #1c1c1c;
 }
 [data-bs-theme="dark"] #cnhs-page-loader {
-    background: #f5a5a5;
+    background: #6ea8fe;
 }

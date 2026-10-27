@@ -1000,10 +1000,7 @@ onMounted(async () => {
                         </div>
 
                         <div class="card-body">
-                            <div v-if="landingLoading" class="text-center py-4">
-                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                                <span class="ms-2 text-muted">Loading...</span>
-                            </div>
+                            <div v-if="landingLoading" class="text-center py-4"></div>
 
                             <div v-else>
                                 <!-- Focused-section heading (hidden on "All Settings") -->

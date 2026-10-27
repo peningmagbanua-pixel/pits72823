@@ -20,7 +20,6 @@
     <title>{{ config('app.name', 'Laravel') }}</title>
     <link rel="icon" href="{{ asset('images/cnhs_logo.png') }}" type="image/x-icon">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <link rel="stylesheet" href="{{ asset('css/spinner.css') }}">
     <style>
         :root { --sidebar-color: {{ $sidebarColor }}; }
         @if($sidebarLight)
@@ -61,12 +60,7 @@
 
     <!-- Initial boot overlay (shown until Vue mounts) -->
     <div id="cnhs-boot-overlay">
-        <span class="cnhs-spinner cnhs-spinner-lg maroon" role="status" aria-label="Loading">
-            <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-        </span>
+        <div class="spinner-border text-primary" role="status" aria-label="Loading"></div>
         <p>Loading, please wait…</p>
     </div>
 
