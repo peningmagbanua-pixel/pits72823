@@ -28,7 +28,7 @@ class UsersTableSeeder extends Seeder
             // Fixed development password (dev convenience; change after first login)
             $plainPassword = 'password';
 
-            $new = User::firstOrCreate(
+            $new = User::withTrashed()->firstOrCreate(
                 ['email' => $user->email],
                 [
                     'firstname' => $user->firstname,

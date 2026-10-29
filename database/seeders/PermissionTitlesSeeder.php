@@ -21,7 +21,7 @@ class PermissionTitlesSeeder extends Seeder
         $permission_titles = json_decode($file);
 
         foreach ($permission_titles as $permission_title) {
-            $title = PermissionTitle::firstOrCreate(
+            $title = PermissionTitle::withTrashed()->firstOrCreate(
                 [
                     'name' => $permission_title->name
                 ]

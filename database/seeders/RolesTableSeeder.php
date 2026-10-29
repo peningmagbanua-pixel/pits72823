@@ -17,7 +17,9 @@ class RolesTableSeeder extends Seeder
         $roles = json_decode($file);
 
         foreach ($roles as $role) {
-            Role::firstOrCreate(
+            // withTrashed(): soft-deleted roles still occupy the unique name
+            // index, so a plain firstOrCreate would try to re-insert them.
+            Role::withTrashed()->firstOrCreate(
                 [
                     'name' => $role->name
                 ]

@@ -18,7 +18,7 @@ class RequirementsTableSeeder extends Seeder
         $requirements = json_decode($file);
 
         foreach ($requirements as $requirement) {
-            $created = Requirement::firstOrCreate(
+            $created = Requirement::withTrashed()->firstOrCreate(
                 [
                     'name' => $requirement->name,
                 ],

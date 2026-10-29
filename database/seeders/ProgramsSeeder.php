@@ -17,7 +17,7 @@ class ProgramsSeeder extends Seeder
         $programs = json_decode($file);
 
         foreach ($programs as $program) {
-            Program::firstOrCreate(
+            Program::withTrashed()->firstOrCreate(
                 ['initials' => $program->initials],
                 [
                     'name'        => $program->name,
