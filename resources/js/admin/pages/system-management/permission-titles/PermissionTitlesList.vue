@@ -207,7 +207,7 @@ onMounted(() => {
                                     </tbody>
                                     <tbody v-else-if="permissionTitles.meta && permissionTitles.meta.total > 0">
                                         <tr v-for="(permissionTitle, index) in permissionTitles.data" :key="permissionTitle.id">
-                                            <td class="text-center align-middle">{{ index + 1 }}</td>
+                                            <td class="text-center align-middle">{{ (permissionTitles.meta.current_page - 1) * paginate + index + 1 }}</td>
                                             <td class="text-center align-middle">{{ permissionTitle.created_at }}</td>
                                             <td class="align-middle">{{ permissionTitle.name }}</td>
                                             <td class="text-center align-middle">

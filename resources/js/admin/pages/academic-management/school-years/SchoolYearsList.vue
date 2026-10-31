@@ -217,7 +217,7 @@ onMounted(() => {
                                     </tbody>
                                     <tbody v-else-if="school_years.meta && school_years.meta.total > 0">
                                         <tr v-for="(school_year, index) in school_years.data" :key="school_year.id">
-                                            <td class="align-middle text-center">{{ index + 1 }}</td>
+                                            <td class="align-middle text-center">{{ (school_years.meta.current_page - 1) * paginate + index + 1 }}</td>
                                             <td class="align-middle text-center">{{ school_year.created_at }}</td>
                                             <td class="align-middle text-center">{{ school_year.school_year_name }}</td>
                                             <td class="align-middle text-center">{{ school_year.school_year_start }}</td>

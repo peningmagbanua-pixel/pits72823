@@ -479,7 +479,7 @@ const actionBadgeClass = (action) => {
                         <h5 class="modal-title fw-bold mb-1">
                             <i class="bi bi-heart-pulse-fill me-2 text-danger"></i>Health Declaration Form
                         </h5>
-                        <p class="text-muted small mb-0">Special Curricular Program in Science — Carranglan National High School</p>
+                        <p class="text-muted small mb-0">Special Curricular Program in Science, Technology and Engineering — Carranglan National High School</p>
                     </div>
                     <button type="button" class="btn-close" title="Close" data-bs-dismiss="modal"></button>
                 </div>
@@ -614,6 +614,8 @@ label {
     font-size: 11px;
     font-weight: 600;
 }
+
+.modal-header .btn-close { margin: 0; flex-shrink: 0; }
 
 /* ── Read-only Health Declaration ── */
 .hd-view-section {

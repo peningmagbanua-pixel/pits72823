@@ -233,7 +233,7 @@ onMounted(() => {
                                     </tbody>
                                     <tbody v-else-if="roles.meta && roles.meta.total > 0">
                                         <tr v-for="(role, index) in roles.data" :key="role.id">
-                                            <td class="text-center align-middle">{{ index + 1 }}</td>
+                                            <td class="text-center align-middle">{{ (roles.meta.current_page - 1) * paginate + index + 1 }}</td>
                                             <td class="text-center align-middle">{{ role.created_at }}</td>
                                             <td class="align-middle">{{ role.name }}</td>
                                             <td class="text-center align-middle actions-cell">

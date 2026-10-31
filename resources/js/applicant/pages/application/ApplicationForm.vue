@@ -46,7 +46,8 @@ const HEALTH_CONDITIONS = [
 const healthAgreed       = ref(false);
 const healthConditions   = ref([]);   // array of selected condition strings
 const othersText         = ref('');
-const healthGuardianName = ref('');
+// Auto-filled from the STE form's guardian name — display only, not editable.
+const healthGuardianName = computed(() => form.value.parent_guardian_name);
 const healthDateSigned   = ref('');
 const certAgreed         = ref(false);
 const healthSignature    = ref('');   // drawn signature (PNG data URL)
@@ -167,6 +168,11 @@ onMounted(async () => {
 // ---------- File input handlers ----------
 const onFileChange = (reqId, e) => {
     files.value[reqId] = e.target.files[0] || null;
+};
+
+// Contact number: digits only, max 11 characters.
+const onContactNumberInput = (e) => {
+    form.value.contact_number = e.target.value.replace(/\D/g, '').slice(0, 11);
 };
 
 const canSaveDeclaration = computed(() =>
@@ -491,7 +497,9 @@ const handleSubmit = async () => {
                                 </label>
                                 <input type="text" id="contact_number" class="form-control form-control-sm"
                                     :class="{ 'is-invalid': errors.contact_number }"
-                                    v-model="form.contact_number" placeholder="09XXXXXXXXX" required>
+                                    :value="form.contact_number" @input="onContactNumberInput"
+                                    inputmode="numeric" pattern="[0-9]*" maxlength="11"
+                                    placeholder="09XXXXXXXXX" required>
                                 <div class="invalid-feedback" v-if="errors.contact_number">{{ errors.contact_number[0] }}</div>
                             </div>
                         </div>
@@ -635,7 +643,7 @@ const handleSubmit = async () => {
                                 <div class="hd-header__region">REGION III &ndash; CENTRAL LUZON</div>
                                 <div class="hd-header__division">SCHOOLS DIVISION OFFICE OF NUEVA ECIJA</div>
                                 <h5 class="hd-header__title mb-0">HEALTH DECLARATION FORM</h5>
-                                <p class="hd-header__subtitle mb-0">Special Curricular Program in Science &mdash; Carranglan National High School</p>
+                                <p class="hd-header__subtitle mb-0">Special Curricular Program in Science, Technology and Engineering &mdash; Carranglan National High School</p>
                             </div>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" title="Close"></button>
                         </div>
@@ -752,7 +760,7 @@ const handleSubmit = async () => {
                                         <div class="col-md-8">
                                             <label class="hd-label" for="hd-guardian-name">Parent / Legal Guardian Name <span class="text-danger">*</span></label>
                                             <input type="text" id="hd-guardian-name" class="form-control hd-input"
-                                                v-model="healthGuardianName"
+                                                :value="healthGuardianName" readonly
                                                 :class="{ 'is-invalid': healthAgreed && !healthGuardianName.trim() }"
                                                 placeholder="Full name of parent or guardian">
                                             <div class="invalid-feedback">Guardian name is required.</div>
@@ -920,7 +928,7 @@ const handleSubmit = async () => {
     object-fit: contain;
 }
 .hd-header__department { font-size: 13px; font-weight: 700; }
-.hd-header .btn-close { margin: 0; flex-shrink: 0; }
+.modal-header .btn-close { margin: 0; flex-shrink: 0; }
 .hd-header__gov {
     font-size: 12px;
     letter-spacing: .04em;

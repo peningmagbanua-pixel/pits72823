@@ -248,3 +248,7 @@ onMounted(() => getActivityLogs());
         </div>
     </div>
 </template>
+
+<style scoped>
+.modal-header .btn-close { margin: 0; flex-shrink: 0; }
+</style>

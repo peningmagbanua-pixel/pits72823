@@ -222,7 +222,7 @@ onMounted(() => {
                                     </tbody>
                                     <tbody v-else-if="applicants.meta && applicants.meta.total > 0">
                                         <tr v-for="(applicant, index) in applicants.data" :key="applicant.id">
-                                            <td class="text-center align-middle">{{ index + 1 }}</td>
+                                            <td class="text-center align-middle">{{ (applicants.meta.current_page - 1) * paginate + index + 1 }}</td>
                                             <td class="text-center align-middle">{{ applicant.created_at }}</td>
                                             <td class="align-middle">
                                                 <img :src="applicant.profile || '/images/default.jpeg'" width="30" class="rounded-5 shadow-sm me-2" alt="Profile">

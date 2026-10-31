@@ -175,7 +175,7 @@ class ApplicationController extends Controller
             'sex' => ['required', 'in:Male,Female'],
             'complete_address' => ['required', 'string', 'max:500'],
             'parent_guardian_name' => ['required', 'string', 'max:255'],
-            'contact_number' => ['required', 'string', 'max:20'],
+            'contact_number' => ['required', 'string', 'regex:/^[0-9]{1,11}$/'],
             'elementary_school' => ['required', 'string', 'max:255'],
             'elementary_school_address' => ['required', 'string', 'max:500'],
         ];
@@ -191,7 +191,7 @@ class ApplicationController extends Controller
                     $rules['ste_declaration.conditions'] = ['required', 'array', 'min:1'];
                     $rules['ste_declaration.conditions.*'] = ['required', 'string', 'max:100'];
                     $rules['ste_declaration.others_text'] = ['nullable', 'string', 'max:1000'];
-                    $rules['ste_declaration.guardian_name'] = ['required', 'string', 'max:255'];
+                    $rules['ste_declaration.guardian_name'] = ['required', 'string', 'max:255', 'same:parent_guardian_name'];
                     $rules['ste_declaration.date_signed'] = ['required', 'date'];
                     // Drawn signature (PNG/JPEG data URL captured by the signature pad).
                     $rules['ste_declaration.signature'] = [

@@ -568,10 +568,10 @@ onMounted(async () => {
                     <button v-if="permissions.create" class="btn btn-primary btn-sm" @click="resetForm" title="Create schedule" data-bs-toggle="modal" data-bs-target="#scheduleModal">
                         <i class="bi bi-plus-circle me-1"></i>Create Schedule
                     </button>
-                    <button v-if="permissions.update && canAccess('STE')" class="btn btn-outline-primary btn-sm" @click="autoAssign(steProgramId)" title="Auto-assign applicants to STE schedules">
+                    <button v-if="permissions.create && canAccess('STE')" class="btn btn-outline-primary btn-sm" @click="autoAssign(steProgramId)" title="Auto-assign applicants to STE schedules">
                         <i class="bi bi-lightning-fill me-1"></i>Auto Assign STE
                     </button>
-                    <button v-if="permissions.update && canAccess('SPICT')" class="btn btn-outline-primary btn-sm" @click="autoAssign(spictProgramId)" title="Auto-assign applicants to SPICT schedules">
+                    <button v-if="permissions.create && canAccess('SPICT')" class="btn btn-outline-primary btn-sm" @click="autoAssign(spictProgramId)" title="Auto-assign applicants to SPICT schedules">
                         <i class="bi bi-lightning-fill me-1"></i>Auto Assign SPICT
                     </button>
                 </div>
@@ -655,7 +655,7 @@ onMounted(async () => {
                                                     </button>
                                                 </template>
                                                 <template v-else>
-                                                    <button v-if="permissions.update" class="btn btn-secondary btn-sm me-1" @click="openManualAssign(schedule)" title="Assign Applicants">
+                                                    <button v-if="permissions.create" class="btn btn-secondary btn-sm me-1" @click="openManualAssign(schedule)" title="Assign Applicants">
                                                         <i class="bi bi-person-plus"></i>
                                                     </button>
                                                     <button v-if="permissions.update" class="btn btn-secondary btn-sm me-1" @click="editSchedule(schedule)" title="Edit">

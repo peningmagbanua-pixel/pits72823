@@ -223,7 +223,7 @@ onMounted(() => {
                                     </tbody>
                                     <tbody v-else-if="programs.meta && programs.meta.total > 0">
                                         <tr v-for="(program, index) in programs.data" :key="program.id">
-                                            <td class="align-middle text-center">{{ index + 1 }}</td>
+                                            <td class="align-middle text-center">{{ (programs.meta.current_page - 1) * paginate + index + 1 }}</td>
                                             <td class="align-middle text-center">{{ program.created_at }}</td>
                                             <td class="align-middle text-center">{{ program.initials }}</td>
                                             <td class="align-middle">{{ program.name }}</td>

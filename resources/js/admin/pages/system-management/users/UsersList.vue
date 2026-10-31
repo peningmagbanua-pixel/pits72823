@@ -243,7 +243,7 @@ onMounted(() => {
                                     </tbody>
                                     <tbody v-else-if="users.meta && users.meta.total > 0">
                                         <tr v-for="(user, index) in users.data" :key="user.id">
-                                            <td class="text-center align-middle">{{ index + 1 }}</td>
+                                            <td class="text-center align-middle">{{ (users.meta.current_page - 1) * paginate + index + 1 }}</td>
                                             <td class="text-center align-middle">{{ user.created_at }}</td>
                                             <td class="align-middle">
                                                 <img :src="user.avatar || '/images/default.jpeg'" width="30" class="rounded-5 shadow-sm me-2" alt="Profile">
