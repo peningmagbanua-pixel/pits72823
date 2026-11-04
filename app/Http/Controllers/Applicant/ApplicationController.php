@@ -3,13 +3,17 @@
 namespace App\Http\Controllers\Applicant;
 
 use App\Http\Controllers\Controller;
+use App\Mail\ApplicationSubmittedMail;
 use App\Models\Admin\Program;
 use App\Models\Admin\Requirement;
 use App\Models\Admin\SchoolYear;
 use App\Models\Applicant\ActivityLog;
 use App\Models\Applicant\ApplicantDocument;
+use App\Support\NotificationSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class ApplicationController extends Controller
 {
@@ -316,6 +320,16 @@ class ApplicationController extends Controller
             request()->ip(),
             request()->userAgent()
         );
+
+        // Email receipt — a failed SMTP connection must never undo the
+        // submission the applicant just completed.
+        if (NotificationSettings::shouldSend(NotificationSettings::EVENT_SUBMITTED)) {
+            try {
+                Mail::to($applicant->email)->send(new ApplicationSubmittedMail($applicant, $program));
+            } catch (\Throwable $e) {
+                Log::error('Submission receipt email failed for '.$applicant->email.': '.$e->getMessage());
+            }
+        }
 
         return response()->json([
             'message' => 'Your application has been submitted successfully and is currently under review.',

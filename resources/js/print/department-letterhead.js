@@ -94,7 +94,7 @@ export const departmentPrintFooter = (resolveAssetUrl) => `
         <div class="print-footer__logos">
             <img class="print-footer__logo" src="${resolveAssetUrl('DepEd-MATATAG.png')}" alt="DepEd MATATAG">
             <img class="print-footer__logo" src="${resolveAssetUrl('bagongpilipinas.jpg')}" alt="Bagong Pilipinas">
-            <img class="print-footer__logo" src="${resolveAssetUrl('cnhs_logo.png')}" alt="Carranglan National High School">
+            <img class="print-footer__logo" src="${window.__LANDING_SETTINGS__?.logo_url || resolveAssetUrl('cnhs_logo.png')}" alt="Carranglan National High School">
         </div>
         <div class="print-footer__contact">
             <span>Address: Brgy. Rizal, Santa Rosa, Nueva Ecija 3101</span>

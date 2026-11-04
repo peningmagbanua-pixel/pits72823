@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\ApplicantAccountCreatedMail;
 use App\Models\Applicant\Applicant;
 use App\Models\Applicant\ActivityLog;
+use App\Support\NotificationSettings;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Laravel\Socialite\Facades\Socialite;
@@ -15,6 +16,11 @@ class GoogleController extends Controller
 {
     public function redirectToGoogle()
     {
+        if ($this->googleLoginDisabled()) {
+            return redirect()->route('applicant.login')
+                ->with('error', 'Google sign-in is currently disabled. Please use your email and password.');
+        }
+
         return Socialite::driver('google')
             ->redirectUrl(config('services.google_applicant.redirect'))
             ->with(['prompt' => 'select_account'])
@@ -23,6 +29,11 @@ class GoogleController extends Controller
 
     public function handleGoogleCallback()
     {
+        if ($this->googleLoginDisabled()) {
+            return redirect()->route('applicant.login')
+                ->with('error', 'Google sign-in is currently disabled. Please use your email and password.');
+        }
+
         try {
             $googleUser = Socialite::driver('google')
                 ->redirectUrl(config('services.google_applicant.redirect'))
@@ -104,11 +115,13 @@ class GoogleController extends Controller
             ]);
 
             // Send login credentials to the applicant's Gmail
-            try {
-                Mail::to($applicant->email)
-                    ->send(new ApplicantAccountCreatedMail($applicant, $plainPassword));
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('Registration email failed for ' . $applicant->email . ': ' . $e->getMessage());
+            if (NotificationSettings::shouldSend(NotificationSettings::EVENT_ACCOUNT_CREATED)) {
+                try {
+                    Mail::to($applicant->email)
+                        ->send(new ApplicantAccountCreatedMail($applicant, $plainPassword));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Registration email failed for ' . $applicant->email . ': ' . $e->getMessage());
+                }
             }
 
             return redirect()->route('applicant.dashboard');
@@ -118,5 +131,19 @@ class GoogleController extends Controller
             return redirect()->route('applicant.login')
                 ->with('error', 'Unable to sign in with Google. Please try again. [' . class_basename($e) . ']');
         }
+    }
+
+    /**
+     * The "Allow Google Login" switch from Admin Settings > Application
+     * Settings — same storage and default as registration_open above.
+     */
+    private function googleLoginDisabled(): bool
+    {
+        $path = storage_path('app/landing_settings.json');
+        $settings = file_exists($path)
+            ? (json_decode(file_get_contents($path), true) ?? [])
+            : [];
+
+        return ! ($settings['app_settings']['allow_google_login'] ?? true);
     }
 }

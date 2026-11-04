@@ -12,6 +12,8 @@ use App\Traits\AuditLogsTrait;
 use App\Traits\ConstantsTrait;
 use App\Enums\ActionType;
 use App\Mail\UserAccountCreatedMail;
+use App\Support\NotificationSettings;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -116,7 +118,13 @@ class UsersController extends Controller
         }
 
         // Send the account created email with credentials
-        Mail::to($user->email)->send(new UserAccountCreatedMail($user, $plainPassword));
+        if (NotificationSettings::shouldSend(NotificationSettings::EVENT_ACCOUNT_CREATED)) {
+            try {
+                Mail::to($user->email)->send(new UserAccountCreatedMail($user, $plainPassword));
+            } catch (\Throwable $e) {
+                Log::error('Account created email failed for '.$user->email.': '.$e->getMessage());
+            }
+        }
 
         $action = ActionType::Created->value;
         $module = 'Users';

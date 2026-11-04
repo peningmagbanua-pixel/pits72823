@@ -2,10 +2,14 @@
 <?php
     $settingsPath = storage_path('app/landing_settings.json');
     $sidebarColor = '#8B0000';
+    $logoUrl = asset('images/cnhs_logo.png');
     if (file_exists($settingsPath)) {
         $json = json_decode(file_get_contents($settingsPath), true) ?? [];
         if (!empty($json['sidebar_color']) && preg_match('/^#[0-9A-Fa-f]{6}$/', $json['sidebar_color'])) {
             $sidebarColor = $json['sidebar_color'];
+        }
+        if (!empty($json['logo_path'])) {
+            $logoUrl = asset('storage/' . $json['logo_path']);
         }
     }
     $sidebarLight = \App\Support\SidebarColor::isLight($sidebarColor);
@@ -18,7 +22,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'Laravel') }}</title>
-    <link rel="icon" href="{{ asset('images/cnhs_logo.png') }}" type="image/x-icon">
+    <link rel="icon" href="{{ $logoUrl }}" type="image/x-icon">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         :root { --sidebar-color: {{ $sidebarColor }}; }
@@ -46,6 +50,9 @@
         }
         @endif
     </style>
+    <script>
+        window.__LANDING_SETTINGS__ = { logo_url: @json($logoUrl) };
+    </script>
     <script>
         window.__SESSION_TIMEOUT__ = {
             timeoutMinutes: {{ (int) \App\Models\Setting::get('session_timeout_minutes', (int) config('session.timeout_minutes')) }},

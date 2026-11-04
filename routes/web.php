@@ -269,6 +269,7 @@ Route::middleware(['auth:web', 'session-timeout:web', 'must-change-password:web'
         Route::post('/requirements', [Admin\RequirementsController::class, 'store'])->middleware('permission:create settings');
         Route::put('/requirements/{id}', [Admin\RequirementsController::class, 'update'])->middleware('permission:update settings');
         Route::delete('/requirements/{id}', [Admin\RequirementsController::class, 'delete'])->middleware('permission:delete settings');
+    Route::post('/requirements/{id}/restore', [Admin\RequirementsController::class, 'restore'])->middleware('permission:delete settings');
 
         // Online Application Period (Settings)
         Route::get('/application-period', [Admin\ApplicationPeriodController::class, 'show'])->middleware('permission:browse online-application|browse system-management');

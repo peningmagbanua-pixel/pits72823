@@ -3,7 +3,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import 'bootstrap';
 
-import { createApp } from 'vue'
+import { createApp, reactive } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router';
 import { createPinia } from 'pinia';
 import { APP } from './constants.js';
@@ -16,6 +16,10 @@ import ApplicantApp from './applicant/App.vue';
 import ApplicantRoutes from './applicant/routes.js';
 
 import { startSessionTimeout, sessionActivity } from './sessionTimeout.js';
+
+// Landing settings injected by the dashboard blades (school logo, …) — kept
+// reactive so Admin Settings changes are reflected across the SPA at once.
+window.__LANDING_SETTINGS__ = reactive(window.__LANDING_SETTINGS__ || {});
 
 // ── Loading indicator helpers ──────────────────────────────────────────────
 const pageLoader = () => document.getElementById('cnhs-page-loader');

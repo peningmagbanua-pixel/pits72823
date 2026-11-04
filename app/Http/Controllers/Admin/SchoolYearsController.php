@@ -44,7 +44,7 @@ class SchoolYearsController extends Controller
             'school_year_start' => 'required',
             'school_year_end' => 'required',
             'application_start' => 'nullable|date',
-            'application_deadline' => 'nullable|date',
+            'application_deadline' => 'nullable|date|after_or_equal:application_start',
             'guidelines' => 'nullable|string',
         ]);
 
@@ -103,7 +103,7 @@ class SchoolYearsController extends Controller
             'school_year_end' => 'required',
             'status' => 'required',
             'application_start' => 'nullable|date',
-            'application_deadline' => 'nullable|date',
+            'application_deadline' => 'nullable|date|after_or_equal:application_start',
             'guidelines' => 'nullable|string',
         ]);
 

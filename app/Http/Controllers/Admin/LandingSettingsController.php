@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\ActionType;
 use App\Http\Controllers\Controller;
+use App\Traits\AuditLogsTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class LandingSettingsController extends Controller
 {
+    use AuditLogsTrait;
+
     private string $settingsFile = 'landing_settings.json';
 
     // Default values — matches the current hardcoded index.blade.php content
@@ -69,6 +73,7 @@ class LandingSettingsController extends Controller
         ]);
 
         $settings = $this->load();
+        $old_values = $settings['app_settings'] ?? null;
         $settings['app_settings'] = [
             'maintenance_mode' => (bool) $request->maintenance_mode,
             'registration_open' => (bool) $request->registration_open,
@@ -76,6 +81,8 @@ class LandingSettingsController extends Controller
             'auto_send_email' => (bool) $request->auto_send_email,
         ];
         $this->save($settings);
+
+        $this->setAuditLog(ActionType::Updated->value, 'Settings', 'Updated application settings', $old_values, $settings['app_settings']);
 
         return response()->json([
             'message' => 'Application settings saved successfully.',
@@ -92,6 +99,7 @@ class LandingSettingsController extends Controller
         ]);
 
         $settings = $this->load();
+        $old_values = $settings['notification_settings'] ?? null;
 
         // Merge saved email flags back into the full notification list
         $emailMap = collect($request->notifications)->keyBy('id');
@@ -105,6 +113,8 @@ class LandingSettingsController extends Controller
             })->values()->toArray();
 
         $this->save($settings);
+
+        $this->setAuditLog(ActionType::Updated->value, 'Settings', 'Updated notification settings', $old_values, $settings['notification_settings']);
 
         return response()->json([
             'message' => 'Notification settings saved successfully.',
@@ -140,6 +150,7 @@ class LandingSettingsController extends Controller
         ]);
 
         $settings = $this->load();
+        $old_values = $settings;
 
         // Handle logo upload
         if ($request->hasFile('logo')) {
@@ -190,6 +201,8 @@ class LandingSettingsController extends Controller
         }
 
         $this->save($settings);
+
+        $this->setAuditLog(ActionType::Updated->value, 'Settings', 'Updated landing page settings', $old_values, $settings);
 
         return response()->json([
             'message' => 'Landing page settings saved successfully.',

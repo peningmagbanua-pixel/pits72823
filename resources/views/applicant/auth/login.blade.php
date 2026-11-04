@@ -1,11 +1,18 @@
 <!DOCTYPE html>
+<?php
+    // School logo — same source of truth as the landing page
+    $lsPath  = storage_path('app/landing_settings.json');
+    $ls      = file_exists($lsPath) ? (json_decode(file_get_contents($lsPath), true) ?? []) : [];
+    $logoUrl = !empty($ls['logo_path']) ? asset('storage/' . $ls['logo_path']) : asset('images/cnhs_logo.png');
+    $googleEnabled = (bool) ($ls['app_settings']['allow_google_login'] ?? true);
+?>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Applicant Login – CNHS Online Application System</title>
-    <link rel="icon" href="{{ asset('images/cnhs_logo.png') }}" type="image/x-icon">
+    <link rel="icon" href="{{ $logoUrl }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ asset('css/login.css') }}">
     <link rel="stylesheet" href="{{ asset('css/spinner.css') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -19,7 +26,7 @@
         <div class="card shadow border-0" style="max-width: 420px; width:100%;">
 
         <div class="text-center mb-4">
-            <img src="{{ asset('images/cnhs_logo.png') }}" width="70" class="mb-2" alt="CNHS Logo">
+            <img src="{{ $logoUrl }}" width="70" class="mb-2" alt="CNHS Logo">
             <h6 class="fw-bold text-dark mb-0">Carranglan National High School</h6>
             <p class="text-muted small mb-1">Online Application System</p>
             <span class="badge bg-primary-subtle text-primary">
@@ -82,6 +89,7 @@
                 </button>
             </div>
 
+            @if ($googleEnabled)
             <div class="d-flex align-items-center my-4">
                 <hr class="flex-grow-1 opacity-25">
                 <small class="px-2 text-muted">or continue with</small>
@@ -100,6 +108,7 @@
                     Redirecting…
                 </span>
             </a>
+            @endif
         </form>
 
         <div class="text-center mt-4">
@@ -123,13 +132,16 @@
             document.getElementById('loginBtn').disabled = true;
         });
 
-        // Google login spinner
-        document.getElementById('googleLoginBtn').addEventListener('click', function () {
-            this.querySelector('.btn-text').style.display = 'none';
-            const loading = this.querySelector('.btn-loading');
-            loading.style.display = 'inline-flex';
-            loading.style.alignItems = 'center';
-        });
+        // Google login spinner (button is hidden when Google login is disabled)
+        const googleLoginBtn = document.getElementById('googleLoginBtn');
+        if (googleLoginBtn) {
+            googleLoginBtn.addEventListener('click', function () {
+                this.querySelector('.btn-text').style.display = 'none';
+                const loading = this.querySelector('.btn-loading');
+                loading.style.display = 'inline-flex';
+                loading.style.alignItems = 'center';
+            });
+        }
     </script>
 </body>
 

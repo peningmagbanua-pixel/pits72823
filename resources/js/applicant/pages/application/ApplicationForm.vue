@@ -17,6 +17,9 @@ const selectedProgram = ref(null);
 const loading = ref(true);
 const submitting = ref(false);
 
+// School logo from landing settings (Admin Settings → Landing Page → Logo)
+const schoolLogoUrl = computed(() => window.__LANDING_SETTINGS__?.logo_url || '/images/cnhs_logo.png');
+
 // Form fields
 const form = ref({
     lastname:                  '',
@@ -832,7 +835,7 @@ const handleSubmit = async () => {
                             <div class="hd-footer__logos">
                                 <img src="/images/DepEd-MATATAG.png" alt="DepEd MATATAG">
                                 <img src="/images/bagongpilipinas.jpg" alt="Bagong Pilipinas">
-                                <img src="/images/cnhs_logo.png" alt="Carranglan National High School">
+                                <img :src="schoolLogoUrl" alt="Carranglan National High School">
                             </div>
                             <div class="hd-footer__contact">
                                 <span>Address: Brgy. Rizal, Santa Rosa, Nueva Ecija 3101</span>

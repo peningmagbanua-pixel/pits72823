@@ -10,8 +10,10 @@ use App\Models\Admin\ExamSchedule;
 use App\Models\Admin\Program;
 use App\Models\Admin\SchoolYear;
 use App\Models\Applicant\Applicant;
+use App\Support\NotificationSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Traits\AdminActivityLogsTrait;
 use App\Traits\AuditLogsTrait;
@@ -359,10 +361,16 @@ class ExamScheduleController extends Controller
                 }
             }
 
-            // Send email notifications
-            foreach ($assignedApplicants as $applicant) {
-                $schedule = $applicant->schedule;
-                Mail::to($applicant->email)->send(new ExamScheduledMail($schedule, $applicant));
+            // Send email notifications — a failed SMTP connection must not
+            // roll back the assignments made above inside this transaction.
+            if (NotificationSettings::shouldSend(NotificationSettings::EVENT_EXAM_SCHEDULED)) {
+                foreach ($assignedApplicants as $applicant) {
+                    try {
+                        Mail::to($applicant->email)->send(new ExamScheduledMail($applicant->schedule, $applicant));
+                    } catch (\Throwable $e) {
+                        Log::error('Exam schedule email failed for '.$applicant->email.': '.$e->getMessage());
+                    }
+                }
             }
 
             $this->logAdminActivity('auto_assigned_exam_schedule', "Auto-assigned $assignedCount applicant(s) to exam schedules for program $programId.");
@@ -428,10 +436,17 @@ class ExamScheduleController extends Controller
                     'exam_status' => 'scheduled',
                 ]);
 
-            // Send email notifications
-            $assignedApplicants = Applicant::whereIn('id', $validated['applicant_ids'])->get();
-            foreach ($assignedApplicants as $applicant) {
-                Mail::to($applicant->email)->send(new ExamScheduledMail($schedule, $applicant));
+            // Send email notifications — a failed SMTP connection must not
+            // roll back the assignments made above inside this transaction.
+            if (NotificationSettings::shouldSend(NotificationSettings::EVENT_EXAM_SCHEDULED)) {
+                $assignedApplicants = Applicant::whereIn('id', $validated['applicant_ids'])->get();
+                foreach ($assignedApplicants as $applicant) {
+                    try {
+                        Mail::to($applicant->email)->send(new ExamScheduledMail($schedule, $applicant));
+                    } catch (\Throwable $e) {
+                        Log::error('Exam schedule email failed for '.$applicant->email.': '.$e->getMessage());
+                    }
+                }
             }
 
             $this->logAdminActivity('manual_assigned_exam_schedule', 'Manually assigned ' . count($validated['applicant_ids']) . ' applicant(s) to exam schedule (' . $schedule->program_id . ', ' . $schedule->date . ', ' . $schedule->time_slot . ').');

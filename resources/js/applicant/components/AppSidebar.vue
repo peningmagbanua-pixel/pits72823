@@ -11,6 +11,8 @@ const authApplicantStore = useAuthApplicantStore();
 
 const isActive = (path) => route.path.startsWith(path);
 
+const logoUrl = computed(() => window.__LANDING_SETTINGS__?.logo_url || "/images/cnhs_logo.png");
+
 // The application form is available before the first submission and,
 // afterwards, only while the application is rejected (reapplication).
 const canOpenForm = computed(
@@ -56,7 +58,7 @@ const logout = () => {
         <div class="sidebar-brand">
             <a href="/applicant/dashboard" class="brand-link">
                 <img
-                    src="/images/cnhs_logo.png"
+                    :src="logoUrl"
                     alt="cnhs-logo"
                     class="brand-image ms-2"
                 />

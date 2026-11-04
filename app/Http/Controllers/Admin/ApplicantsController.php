@@ -12,6 +12,7 @@ use App\Models\Admin\ExamSchedule;
 use App\Models\Admin\Program;
 use App\Models\Applicant\ActivityLog;
 use App\Models\Applicant\Applicant;
+use App\Support\NotificationSettings;
 use App\Traits\AdminActivityLogsTrait;
 use App\Traits\AuditLogsTrait;
 use App\Traits\ProgramScopeTrait;
@@ -243,11 +244,13 @@ class ApplicantsController extends Controller
                 ]);
 
                 // Notify the applicant of approval via email
-                try {
-                    Mail::to($applicant->email)
-                        ->send(new ApplicationStatusNotificationEmail($applicant, 'approved'));
-                } catch (\Exception $e) {
-                    Log::error('Approval email failed for '.$applicant->email.': '.$e->getMessage());
+                if (NotificationSettings::shouldSend(NotificationSettings::EVENT_APPROVED)) {
+                    try {
+                        Mail::to($applicant->email)
+                            ->send(new ApplicationStatusNotificationEmail($applicant, 'approved'));
+                    } catch (\Exception $e) {
+                        Log::error('Approval email failed for '.$applicant->email.': '.$e->getMessage());
+                    }
                 }
 
                 // Log approval activity
@@ -269,11 +272,13 @@ class ApplicantsController extends Controller
 
             // On rejection: notify the applicant without deactivating the account
             if ($newStatus === 'rejected') {
-                try {
-                    Mail::to($applicant->email)
-                        ->send(new ApplicationRejectedMail($applicant));
-                } catch (\Exception $e) {
-                    Log::error('Rejection email failed for '.$applicant->email.': '.$e->getMessage());
+                if (NotificationSettings::shouldSend(NotificationSettings::EVENT_REJECTED)) {
+                    try {
+                        Mail::to($applicant->email)
+                            ->send(new ApplicationRejectedMail($applicant));
+                    } catch (\Exception $e) {
+                        Log::error('Rejection email failed for '.$applicant->email.': '.$e->getMessage());
+                    }
                 }
 
                 // Log rejection activity
@@ -296,11 +301,13 @@ class ApplicantsController extends Controller
 
             // On reset to pending: notify the applicant without deactivating the account
             if ($newStatus === 'pending' && $oldStatus !== 'pending') {
-                try {
-                    Mail::to($applicant->email)
-                        ->send(new ApplicationResetToPendingMail($applicant));
-                } catch (\Exception $e) {
-                    Log::error('Reset-to-pending email failed for '.$applicant->email.': '.$e->getMessage());
+                if (NotificationSettings::shouldSend(NotificationSettings::EVENT_RESET)) {
+                    try {
+                        Mail::to($applicant->email)
+                            ->send(new ApplicationResetToPendingMail($applicant));
+                    } catch (\Exception $e) {
+                        Log::error('Reset-to-pending email failed for '.$applicant->email.': '.$e->getMessage());
+                    }
                 }
 
                 ActivityLog::logActivity(

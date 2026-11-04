@@ -17,7 +17,10 @@ class RequirementsController extends Controller
 
     public function index()
     {
+        $deleted = request('deleted') == '1';
+
         $requirements = Requirement::with(['programs' => fn ($programs) => $programs->withTrashed()])
+            ->when($deleted, fn ($query) => $query->onlyTrashed())
             ->when(! $this->checkHasRoleSystemAdministrator(), fn ($query) => $this->scopeToCallerPrograms($query))
             ->orderBy('sort_order', 'asc')
             ->orderBy('name', 'asc')
@@ -140,6 +143,29 @@ class RequirementsController extends Controller
         return response()->json([
             'message' => 'Failed to delete requirement!',
         ], 500);
+    }
+
+    public function restore($id)
+    {
+        $requirement = Requirement::withTrashed()->findOrFail($id);
+
+        if (! $requirement->trashed()) {
+            return response()->json([
+                'message' => 'Requirement is not deleted!',
+            ], 400);
+        }
+
+        $this->assertRequirementProgramsAllowed($requirement->programs()->withTrashed()->get()->pluck('id')->all());
+
+        $old_values = $requirement->getOriginal();
+
+        $requirement->restore();
+
+        $this->setAuditLog(ActionType::Updated->value, 'Settings', 'Restored requirement '.$requirement->id, $old_values, $requirement->toArray());
+
+        return response()->json([
+            'message' => 'Requirement restored successfully!',
+        ]);
     }
 
     /**

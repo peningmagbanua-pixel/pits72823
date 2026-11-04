@@ -7,6 +7,7 @@ use App\Mail\ApplicantAccountCreatedMail;
 use App\Models\Admin\User;
 use App\Models\Applicant\ActivityLog;
 use App\Models\Applicant\Applicant;
+use App\Support\NotificationSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -109,11 +110,13 @@ class RegisterController extends Controller
         );
 
         // Send login credentials to the applicant's email
-        try {
-            Mail::to($applicant->email)
-                ->send(new ApplicantAccountCreatedMail($applicant, $generatedPassword));
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Registration email failed for ' . $applicant->email . ': ' . $e->getMessage());
+        if (NotificationSettings::shouldSend(NotificationSettings::EVENT_ACCOUNT_CREATED)) {
+            try {
+                Mail::to($applicant->email)
+                    ->send(new ApplicantAccountCreatedMail($applicant, $generatedPassword));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Registration email failed for ' . $applicant->email . ': ' . $e->getMessage());
+            }
         }
 
         // Auto-login and go straight to the dashboard

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Mail\Transports\GmailApiTransport;
+use App\Models\Setting;
 use App\Traits\ConstantsTrait;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
@@ -27,6 +28,27 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // The Admin Settings session-timeout values must outlive Laravel's
+        // own SESSION_LIFETIME GC window, or an idle logout configured above
+        // ~120 minutes silently underperforms. Only ever raised, so small
+        // timeouts never shrink guest/CSRF sessions; guarded because the
+        // settings table may not exist yet during install or migrations.
+        try {
+            $idleMinutes = (int) Setting::get(
+                'session_timeout_minutes',
+                (int) config('session.timeout_minutes')
+            ) + (int) Setting::get(
+                'session_warning_minutes',
+                (int) config('session.warning_minutes')
+            );
+
+            if ($idleMinutes > 0) {
+                config(['session.lifetime' => max((int) config('session.lifetime'), $idleMinutes)]);
+            }
+        } catch (\Throwable $e) {
+            // Settings table unavailable — keep the configured default.
+        }
+
         Mail::extend('gmail-api', function () {
             $config = config('services.gmail_api');
 

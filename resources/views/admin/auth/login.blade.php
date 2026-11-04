@@ -1,11 +1,17 @@
 <!DOCTYPE html>
+<?php
+    // School logo — same source of truth as the landing page
+    $lsPath  = storage_path('app/landing_settings.json');
+    $ls      = file_exists($lsPath) ? (json_decode(file_get_contents($lsPath), true) ?? []) : [];
+    $logoUrl = !empty($ls['logo_path']) ? asset('storage/' . $ls['logo_path']) : asset('images/cnhs_logo.png');
+?>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LOGIN</title>
-    <link rel="icon" href="{{ asset('images/cnhs_logo.png') }}" type="image/x-icon">
+    <link rel="icon" href="{{ $logoUrl }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ asset('css/login.css') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
@@ -19,7 +25,7 @@
         <div class="card shadow border-0" style="max-width: 420px; width:100%;">
 
             <div class="text-center mb-4">
-                <img src="{{ asset('images/cnhs_logo.png') }}" width="70" class="mb-2" alt="CNHS Logo">
+                <img src="{{ $logoUrl }}" width="70" class="mb-2" alt="CNHS Logo">
 
                 <h6 class="fw-bold text-dark mb-0">Carranglan National High School</h6>
                 <p class="text-muted small mb-1">Online Application System</p>

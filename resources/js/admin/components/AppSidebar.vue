@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import Swal from "sweetalert2";
 import { useAuthUserStore } from "../stores/AuthUserStore";
@@ -9,6 +10,8 @@ const router = useRouter();
 const route = useRoute();
 
 const isActive = (path) => route.path.startsWith(path);
+
+const logoUrl = computed(() => window.__LANDING_SETTINGS__?.logo_url || "/images/cnhs_logo.png");
 
 const logout = () => {
     Swal.fire({
@@ -49,7 +52,7 @@ const logout = () => {
         <div class="sidebar-brand">
             <a href="/admin/dashboard" class="brand-link">
                 <img
-                    src="/images/cnhs_logo.png"
+                    :src="logoUrl"
                     alt="cnhs-logo"
                     class="brand-image ms-2"
                 />

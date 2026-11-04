@@ -8,6 +8,8 @@ const dashboardData = ref({
 });
 const loading = ref(true);
 
+const logoUrl = computed(() => window.__LANDING_SETTINGS__?.logo_url || "/images/cnhs_logo.png");
+
 
 const fetchDashboardData = async () => {
     try {
@@ -81,7 +83,7 @@ onMounted(() => {
                 <!-- Welcome Card -->
                 <div class="card shadow-sm border-0 mb-4">
                     <div class="card-body text-center py-4">
-                        <img src="/images/cnhs_logo.png" alt="CNHS Logo" class="mb-3" style="width: 80px;">
+                        <img :src="logoUrl" alt="CNHS Logo" class="mb-3" style="width: 80px;">
                         <h4 class="fw-bold text-secondary mb-1">Welcome{{ dashboardData.applicant?.name ? ', ' + dashboardData.applicant.name : '' }}!</h4>
                         <p class="text-muted mb-0">Carranglan National High School — Online Application Portal</p>
                     </div>

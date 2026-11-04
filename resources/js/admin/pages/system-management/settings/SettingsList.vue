@@ -183,6 +183,7 @@ const saveApplicationPeriod = async () => {
 // ── Requirements ──────────────────────────────────────────────────────────────
 const requirements = ref([]);
 const requirementsLoading = ref(true);
+const showDeleted = ref(false);
 const programs = ref([]);
 
 // Coordinators may only assign / manage programs inside their own scope.
@@ -213,7 +214,9 @@ const fetchPrograms = async () => {
 const fetchRequirements = async () => {
     requirementsLoading.value = true;
     try {
-        const res = await axios.get('/api/requirements');
+        const res = await axios.get('/api/requirements', {
+            params: { deleted: showDeleted.value ? 1 : 0 },
+        });
         requirements.value = res.data.data || res.data;
     } catch (e) {
         console.error('Failed to load requirements:', e);
@@ -362,6 +365,33 @@ const deleteRequirement = (id) => {
             } catch (e) {
                 Swal.close();
                 sweetAlert('error', e.response?.data?.message || 'Failed to delete requirement.');
+            }
+        }
+    });
+};
+
+const restoreRequirement = (id) => {
+    Swal.fire({
+        title: 'Are you sure?',
+        text: 'You are about to restore this requirement!',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, restore it!',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            processingAlert('.btn');
+            try {
+                const res = await axios.post(`/api/requirements/${id}/restore`);
+                Swal.close();
+                sweetAlert('success', res.data.message);
+                fetchRequirements();
+            } catch (e) {
+                Swal.close();
+                sweetAlert('error', e.response?.data?.message || 'Failed to restore requirement.');
             }
         }
     });
@@ -644,6 +674,13 @@ const saveLandingSettings = async () => {
         removeLogo.value  = false;
         removeBanner.value = false;
 
+        // Reflect the saved logo across the SPA (sidebar, dashboards) right away
+        if (window.__LANDING_SETTINGS__ && saved.logo_path !== undefined) {
+            window.__LANDING_SETTINGS__.logo_url = saved.logo_path
+                ? storageBase + saved.logo_path
+                : '/images/cnhs_logo.png';
+        }
+
         sweetAlert('success', res.data.message);
     } catch (e) {
         const msg = e.response?.data?.message || 'Failed to save landing page settings.';
@@ -856,6 +893,14 @@ onMounted(async () => {
                                 <i class="bi bi-file-earmark-check-fill me-2 text-secondary"></i>Requirements
                             </h6>
                             <div class="d-flex gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <label class="form-label small mb-0">View:</label>
+                                    <select v-model="showDeleted" class="form-select form-select-sm" style="width: auto;"
+                                        @change="fetchRequirements">
+                                        <option :value="false">Active</option>
+                                        <option :value="true">Deleted</option>
+                                    </select>
+                                </div>
                                 <button v-if="permissions.create" class="btn btn-primary btn-sm" title="Add requirement" @click="openAddReqModal">
                                     <i class="bi bi-plus-circle me-1"></i>New Requirement
                                 </button>
@@ -906,33 +951,42 @@ onMounted(async () => {
                                                     class="badge bg-secondary-subtle text-secondary">Inactive</span>
                                             </td>
                                             <td class="text-center align-middle actions-cell">
-                                                <button class="btn btn-info btn-sm me-1"
-                                                    @click="openViewReqModal(req)"
-                                                    title="View">
-                                                    <i class="bi bi-eye-fill"></i>
-                                                </button>
-                                                <button v-if="permissions.update && canManageRequirement(req)" class="btn btn-secondary btn-sm me-1"
-                                                    title="Edit requirement"
-                                                    @click="openEditReqModal(req)">
-                                                    <i class="bi bi-pencil-square"></i>
-                                                </button>
-                                                <button v-if="permissions.update && canManageRequirement(req)" class="btn btn-sm me-1"
-                                                    :class="req.is_active ? 'btn-warning' : 'btn-success'"
-                                                    @click="toggleRequirementStatus(req)"
-                                                    :title="req.is_active ? 'Deactivate' : 'Activate'">
-                                                    <i class="bi" :class="req.is_active ? 'bi-eye-slash-fill' : 'bi-eye-fill'"></i>
-                                                </button>
-                                                <button v-if="permissions.delete && canManageRequirement(req)" class="btn btn-danger btn-sm"
-                                                    title="Delete requirement"
-                                                    @click="deleteRequirement(req.id)">
-                                                    <i class="bi bi-trash-fill"></i>
-                                                </button>
+                                                <template v-if="showDeleted">
+                                                    <button v-if="permissions.delete && canManageRequirement(req)" class="btn btn-success btn-sm"
+                                                        title="Restore requirement"
+                                                        @click="restoreRequirement(req.id)">
+                                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                                    </button>
+                                                </template>
+                                                <template v-else>
+                                                    <button class="btn btn-info btn-sm me-1"
+                                                        @click="openViewReqModal(req)"
+                                                        title="View">
+                                                        <i class="bi bi-eye-fill"></i>
+                                                    </button>
+                                                    <button v-if="permissions.update && canManageRequirement(req)" class="btn btn-secondary btn-sm me-1"
+                                                        title="Edit requirement"
+                                                        @click="openEditReqModal(req)">
+                                                        <i class="bi bi-pencil-square"></i>
+                                                    </button>
+                                                    <button v-if="permissions.update && canManageRequirement(req)" class="btn btn-sm me-1"
+                                                        :class="req.is_active ? 'btn-warning' : 'btn-success'"
+                                                        @click="toggleRequirementStatus(req)"
+                                                        :title="req.is_active ? 'Deactivate' : 'Activate'">
+                                                        <i class="bi" :class="req.is_active ? 'bi-eye-slash-fill' : 'bi-eye-fill'"></i>
+                                                    </button>
+                                                    <button v-if="permissions.delete && canManageRequirement(req)" class="btn btn-danger btn-sm"
+                                                        title="Delete requirement"
+                                                        @click="deleteRequirement(req.id)">
+                                                        <i class="bi bi-trash-fill"></i>
+                                                    </button>
+                                                </template>
                                             </td>
                                         </tr>
                                     </tbody>
                                     <tbody v-else>
                                         <tr>
-                                            <td colspan="6" class="text-center">No requirements found.</td>
+                                            <td colspan="6" class="text-center">{{ showDeleted ? 'No deleted requirements found.' : 'No requirements found.' }}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -968,7 +1022,8 @@ onMounted(async () => {
                                             <td class="text-center align-middle">
                                                 <div class="form-check form-switch d-flex justify-content-center mb-0">
                                                     <input class="form-check-input" type="checkbox"
-                                                        role="switch" v-model="notif.email">
+                                                        role="switch" v-model="notif.email"
+                                                        :disabled="!permissions.update">
                                                 </div>
                                             </td>
                                         </tr>
@@ -1022,7 +1077,7 @@ onMounted(async () => {
                                             <div class="d-flex gap-2">
                                                 <label class="btn btn-outline-secondary btn-sm mb-0" style="cursor:pointer;">
                                                     <i class="bi bi-upload me-1"></i>Upload
-                                                    <input type="file" accept="image/*" class="d-none" @change="onLogoChange">
+                                                    <input type="file" accept="image/png,image/jpeg" class="d-none" @change="onLogoChange">
                                                 </label>
                                                 <button v-if="currentLogoUrl && currentLogoUrl !== '/images/cnhs_logo.png'"
                                                     type="button" class="btn btn-outline-danger btn-sm"
@@ -1032,7 +1087,7 @@ onMounted(async () => {
                                                 </button>
                                             </div>
                                         </div>
-                                        <small class="text-muted">PNG, JPG, or SVG. Max 2 MB.</small>
+                                        <small class="text-muted">PNG or JPG. Max 2 MB.</small>
                                     </div>
 
                                     <!-- Banner Image -->
@@ -1049,7 +1104,7 @@ onMounted(async () => {
                                             <div class="d-flex gap-2">
                                                 <label class="btn btn-outline-secondary btn-sm mb-0" style="cursor:pointer;">
                                                     <i class="bi bi-upload me-1"></i>Upload
-                                                    <input type="file" accept="image/*" class="d-none" @change="onBannerChange">
+                                                    <input type="file" accept="image/png,image/jpeg,image/webp" class="d-none" @change="onBannerChange">
                                                 </label>
                                                 <button v-if="currentBannerUrl"
                                                     type="button" class="btn btn-outline-danger btn-sm"

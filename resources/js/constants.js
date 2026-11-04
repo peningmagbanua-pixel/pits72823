@@ -58,8 +58,9 @@ export const escapeHtml = (value) => String(value ?? '')
 
 export const resolveAssetUrl = (file) => {
     const icon = document.querySelector('link[rel="icon"]')?.href;
-    if (!icon) return `/images/${file}`;
-    try { return new URL(file, icon).href; } catch { return `/images/${file}`; }
+    // Always resolve from the /images folder: the favicon may point at the
+    // dynamic school logo (storage) and must not be used as the base path.
+    try { return new URL('/images/' + file, icon || window.location.origin).href; } catch { return `/images/${file}`; }
 };
 
 export const waitForImages = (win, timeout = 4000) => new Promise(resolve => {
