@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import Swal from 'sweetalert2';
 import { sweetAlert, processingAlert } from '../../../../sweetalert';
 import { useAuthUserStore } from '../../../stores/AuthUserStore';
+import { applySessionSettings } from '../../../../sessionTimeout';
 
 const authUserStore = useAuthUserStore();
 
@@ -107,6 +108,9 @@ const saveSessionTimeout = async () => {
         });
         sessionTimeout.value.timeout_minutes = res.data.timeout_minutes;
         sessionTimeout.value.warning_minutes = res.data.warning_minutes;
+        // The running session must pick up the new durations immediately,
+        // without waiting for a full page reload of the dashboard blade.
+        applySessionSettings(res.data);
         sweetAlert('success', res.data.message);
     } catch (e) {
         // On error, re-fetch from server to restore correct state

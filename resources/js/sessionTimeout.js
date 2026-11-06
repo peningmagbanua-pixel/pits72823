@@ -4,9 +4,11 @@ import { Modal } from 'bootstrap';
 // Server-side inactivity is authoritative. The SPA mirrors the server's
 // deadline (GET statusUrl), refreshes it through throttled pings (POST
 // activityUrl) on real user activity, and treats any 401 as an expired
-// session. Values come from Admin Settings (settings table) →
-// window.__SESSION_TIMEOUT__ (injected by the dashboard blades), falling
-// back to SESSION_TIMEOUT_MINUTES and SESSION_WARNING_MINUTES.
+// session. Duration settings come from Admin Settings (settings table): the
+// server payloads are adopted on every sync so a Settings save takes effect
+// without a page reload, with window.__SESSION_TIMEOUT__ (injected by the
+// dashboard blades) as the pre-first-response fallback, then
+// SESSION_TIMEOUT_MINUTES and SESSION_WARNING_MINUTES.
 //
 // The warning modal uses a static backdrop, so it must never be able to get
 // stuck: the modal is never shown from a hidden tab (background timers and
@@ -35,6 +37,8 @@ let hidingUntil = 0; // ms epoch until which a dismissal-driven hide settles
 let lastActivity = 0;
 let lastHeartbeatAt = 0;
 let lastSyncAt = 0;
+let serverTimeoutMinutes = 0; // live settings adopted from the server payloads
+let serverWarningMinutes = 0;
 
 let logoutUrl = '';
 let loginPath = '/admin/login';
@@ -43,9 +47,20 @@ let activityUrl = '';
 
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'click', 'keydown', 'scroll', 'touchstart'];
 
-const timeoutMinutes = () => Number(window.__SESSION_TIMEOUT__?.timeoutMinutes) || 15;
-const warningMinutes = () => Number(window.__SESSION_TIMEOUT__?.warningMinutes) || 2;
+const timeoutMinutes = () => serverTimeoutMinutes || Number(window.__SESSION_TIMEOUT__?.timeoutMinutes) || 15;
+const warningMinutes = () => serverWarningMinutes || Number(window.__SESSION_TIMEOUT__?.warningMinutes) || 2;
 const warningMs = () => warningMinutes() * 60000;
+
+// Adopt the authoritative settings carried by the session payloads (and by
+// the Admin Settings save response) so the idle-before-warning wait and the
+// countdown length always match the configured values — the blade-injected
+// copy only exists until the next full page load.
+const setServerSettings = (timeout, warning) => {
+    const t = Number(timeout);
+    const w = Number(warning);
+    if (t > 0) serverTimeoutMinutes = t;
+    if (w > 0) serverWarningMinutes = w;
+};
 
 const formatCountdown = (ms) => {
     const total = Math.max(0, Math.ceil(ms / 1000));
@@ -140,6 +155,10 @@ const scheduleWarning = () => {
     clearTimeout(idleTimer);
     idleTimer = null;
     if (!deadline) return;
+    // Only the idle timer is armed here: it fires once the configured idle
+    // duration has elapsed, and showWarning() then starts the countdown for
+    // the configured logout duration. The countdown never runs before the
+    // warning is on screen, and logout happens only when it reaches zero.
     const delay = deadline - warningMs() - Date.now();
     if (delay > 0) {
         idleTimer = setTimeout(showWarning, delay);
@@ -168,6 +187,15 @@ const tickCountdown = () => {
     }
 };
 
+// Start the countdown tick for the warning that is on screen. Never
+// duplicates an existing tick and always refreshes immediately so the
+// display re-anchors to the deadline.
+const startTicking = () => {
+    if (!isWarningUp()) return;
+    if (warnTimer === null) warnTimer = setInterval(tickCountdown, 250);
+    tickCountdown();
+};
+
 const isWarningUp = () => {
     if (warningVisible) return true;
     const el = modalEl();
@@ -178,8 +206,6 @@ const isWarningUp = () => {
 };
 
 const forceRemoveWarningModal = (el) => {
-    const instance = Modal.getInstance(el);
-    if (instance) instance.dispose();
     el.remove();
     document.querySelectorAll('.modal-backdrop').forEach((backdrop) => backdrop.remove());
     document.body.classList.remove('modal-open');
@@ -187,6 +213,10 @@ const forceRemoveWarningModal = (el) => {
     warningVisible = false;
     clearInterval(warnTimer);
     warnTimer = null;
+    // Dispose after the DOM is gone: Bootstrap's pending show/hide transition
+    // callbacks still reference the element and throw on a live dispose().
+    const instance = Modal.getInstance(el);
+    if (instance) setTimeout(() => instance.dispose(), CLEANUP_DELAY);
 };
 
 // Mirror Bootstrap's ScrollBarHelper.reset() — show() locks body scrolling
@@ -267,7 +297,7 @@ const showWarning = () => {
     const el = countdownEl();
     if (el) el.textContent = formatCountdown(deadline - Date.now());
     Modal.getOrCreateInstance(modal).show();
-    warnTimer = setInterval(tickCountdown, 250);
+    startTicking();
 };
 
 // Final server check before logging out: another tab may have kept the
@@ -276,6 +306,7 @@ const confirmExpiry = async () => {
     if (loggingOut) return;
     try {
         const { data } = await window.axios.get(statusUrl, { timeout: REQUEST_TIMEOUT });
+        setServerSettings(data.timeout_minutes, data.warning_minutes);
         applyRemaining(data.remaining_seconds);
         if (deadline - Date.now() > 0) {
             dismissWarning();
@@ -300,6 +331,7 @@ const sendHeartbeat = async () => {
     try {
         const { data } = await window.axios.post(activityUrl, undefined, { timeout: REQUEST_TIMEOUT });
         if (loggingOut) return;
+        setServerSettings(data.timeout_minutes, data.warning_minutes);
         applyRemaining(data.remaining_seconds);
         if (warningVisible && deadline - Date.now() > warningMs()) {
             dismissWarning();
@@ -328,6 +360,7 @@ const syncStatus = async () => {
     try {
         const { data } = await window.axios.get(statusUrl, { timeout: REQUEST_TIMEOUT });
         if (loggingOut) return;
+        setServerSettings(data.timeout_minutes, data.warning_minutes);
         applyRemaining(data.remaining_seconds);
         if (warningVisible && deadline - Date.now() > warningMs()) {
             dismissWarning(); // Kept alive by activity in another tab.
@@ -359,6 +392,21 @@ const onActivity = () => {
 
 // Exported for the routers: SPA navigation counts as user activity.
 export const sessionActivity = () => onActivity();
+
+// Exported for Admin Settings: a save must apply both durations immediately
+// (idle before warning, countdown before logout) without requiring a full
+// page reload. The controller responds with snake_case keys — the same shape
+// as the session payloads — so they are adopted directly, with an immediate
+// status re-sync as the backstop.
+export const applySessionSettings = (payload = {}) => {
+    setServerSettings(
+        payload.timeout_minutes ?? payload.timeoutMinutes,
+        payload.warning_minutes ?? payload.warningMinutes,
+    );
+    if (!started || loggingOut) return;
+    lastSyncAt = 0; // a settings change invalidates the sync throttle
+    syncStatus();
+};
 
 const onVisibilityChange = () => {
     // Becoming visible is not activity by itself — re-sync with the server
