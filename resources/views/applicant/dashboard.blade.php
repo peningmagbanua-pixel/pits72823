@@ -53,12 +53,6 @@
     <script>
         window.__LANDING_SETTINGS__ = { logo_url: @json($logoUrl) };
     </script>
-    <script>
-        window.__SESSION_TIMEOUT__ = {
-            timeoutMinutes: {{ (int) \App\Models\Setting::get('session_timeout_minutes', (int) config('session.timeout_minutes')) }},
-            warningMinutes: {{ (int) \App\Models\Setting::get('session_warning_minutes', (int) config('session.warning_minutes')) }},
-        };
-    </script>
 </head>
 
 <body class="layout-fixed fixed-header fixed-footer app-loaded sidebar-expand-lg sidebar-mini bg-body-tertiary">

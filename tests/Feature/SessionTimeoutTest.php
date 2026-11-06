@@ -164,63 +164,55 @@ class SessionTimeoutTest extends TestCase
     }
 
     // ── Applicant ──────────────────────────────────────────────────────────
+    // The inactivity timeout is an Admin-only feature: applicant sessions
+    // keep their normal authentication behavior no matter how long they sit
+    // idle, even when the shared last_activity_at clock is far past the
+    // staff limit.
 
-    public function test_applicant_status_returns_the_remaining_session_time(): void
-    {
-        $response = $this->actingAs($this->applicant(), 'applicant')
-            ->getJson('/api/applicant/session/status');
-
-        $response->assertStatus(200);
-        $response->assertJsonPath('status', 'active');
-        $this->assertGreaterThan(0, $response->json('remaining_seconds'));
-        $this->assertLessThanOrEqual(self::LIMIT, $response->json('remaining_seconds'));
-    }
-
-    public function test_applicant_activity_refreshes_the_inactivity_timestamp(): void
-    {
-        $applicant = $this->applicant();
-
-        $response = $this->actingAs($applicant, 'applicant')
-            ->withSession(['last_activity_at' => now()->subMinute()->getTimestamp()])
-            ->postJson('/api/applicant/session/activity');
-
-        $response->assertStatus(200);
-        $this->assertGreaterThanOrEqual(self::LIMIT - 5, $response->json('remaining_seconds'));
-    }
-
-    public function test_applicant_api_is_rejected_when_the_session_went_inactive(): void
+    public function test_applicant_api_is_not_rejected_when_the_session_went_inactive(): void
     {
         $applicant = $this->applicant();
 
         $this->actingAs($applicant, 'applicant')
             ->withSession($this->staleSession())
             ->getJson('/api/applicant/dashboard')
-            ->assertStatus(401)
-            ->assertJson(['code' => 'session_expired']);
+            ->assertStatus(200);
     }
 
-    public function test_applicant_page_redirects_to_login_when_the_session_went_inactive(): void
+    public function test_applicant_page_is_not_redirected_when_the_session_went_inactive(): void
     {
         $applicant = $this->applicant();
 
         $this->actingAs($applicant, 'applicant')
             ->withSession($this->staleSession())
             ->get('/applicant/dashboard')
-            ->assertStatus(302)
-            ->assertRedirect(route('applicant.login'));
+            ->assertStatus(200);
     }
 
-    public function test_expired_applicant_session_is_fully_invalidated(): void
+    public function test_stale_activity_does_not_log_the_applicant_out(): void
     {
         $applicant = $this->applicant();
 
         $this->actingAs($applicant, 'applicant')
             ->withSession($this->staleSession())
             ->getJson('/api/applicant/profile')
-            ->assertStatus(401);
+            ->assertStatus(200);
 
-        $this->assertGuest('applicant');
-        $this->assertNull(session()->get('last_activity_at'));
+        $this->assertAuthenticatedAs($applicant, 'applicant');
+    }
+
+    public function test_applicant_session_timeout_endpoints_are_not_registered(): void
+    {
+        // Unmatched URLs fall through to the home redirect — proving the
+        // applicant session-timeout routes no longer exist.
+        $this->actingAs($this->applicant(), 'applicant')
+            ->getJson('/api/applicant/session/status')
+            ->assertStatus(302)
+            ->assertRedirect(route('home'));
+
+        $this->actingAs($this->applicant(), 'applicant')
+            ->postJson('/api/applicant/session/activity')
+            ->assertStatus(405);
     }
 
     public function test_applicant_logout_still_works_when_the_session_went_inactive(): void

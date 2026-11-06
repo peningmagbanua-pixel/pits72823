@@ -36,7 +36,6 @@ class MustChangePassword
             'api/applicant/profile',
             'api/applicant/profile/change-password',
             'api/session/*',
-            'api/applicant/session/*',
         ];
 
         if ($request->is($allowed)) {

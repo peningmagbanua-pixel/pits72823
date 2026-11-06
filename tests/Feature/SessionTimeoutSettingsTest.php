@@ -94,7 +94,7 @@ class SessionTimeoutSettingsTest extends TestCase
         $this->assertLessThanOrEqual(360, $response->json('remaining_seconds'));
     }
 
-    public function test_saved_values_are_used_by_the_applicant_automatic_logout_system(): void
+    public function test_saved_values_do_not_reach_the_applicant_page(): void
     {
         $admin = $this->userWithRole('System Administrator');
 
@@ -103,14 +103,12 @@ class SessionTimeoutSettingsTest extends TestCase
             'warning_minutes' => 1,
         ])->assertStatus(200);
 
-        $response = $this->actingAs($this->applicant(), 'applicant')
-            ->getJson('/api/applicant/session/status');
-
-        $response->assertStatus(200);
-        $response->assertJsonPath('timeout_minutes', 5);
-        $response->assertJsonPath('warning_minutes', 1);
-        $response->assertJsonPath('warning_seconds', 60);
-        $this->assertLessThanOrEqual(360, $response->json('remaining_seconds'));
+        // The applicant SPA has no session-timeout endpoints — the feature
+        // is Admin-only, so the saved values must not be exposed there.
+        $this->actingAs($this->applicant(), 'applicant')
+            ->getJson('/api/applicant/session/status')
+            ->assertStatus(302)
+            ->assertRedirect(route('home'));
     }
 
     public function test_expired_staff_session_uses_the_saved_timeout_value(): void

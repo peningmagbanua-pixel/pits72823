@@ -101,20 +101,10 @@ if (document.getElementById(APP.APPLICANT)) {
     });
 
     applicantRouter.beforeEach(() => startLoader());
-    applicantRouter.afterEach(() => {
-        finishLoader();
-        sessionActivity();
-    });
+    applicantRouter.afterEach(() => finishLoader());
 
     applicantApp.use(createPinia());
     applicantApp.use(applicantRouter);
     applicantApp.mount('#' + APP.APPLICANT);
     hideBootOverlay();
-
-    startSessionTimeout({
-        logoutUrl: '/applicant/logout',
-        loginPath: '/applicant/login',
-        statusUrl: '/api/applicant/session/status',
-        activityUrl: '/api/applicant/session/activity',
-    });
 }

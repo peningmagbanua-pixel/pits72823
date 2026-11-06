@@ -109,7 +109,7 @@ Route::get('/gmail-auth-callback', function (\Illuminate\Http\Request $request) 
 });
 
 // Applicant Protected Routes
-Route::middleware(['auth:applicant', 'session-timeout:applicant', 'maintenance', 'must-change-password:applicant'])->group(function () {
+Route::middleware(['auth:applicant', 'maintenance', 'must-change-password:applicant'])->group(function () {
     Route::post('/applicant/logout', [Applicant\Auth\LoginController::class, 'logout'])->name('applicant.logout');
 
     // Applicant Protected Pages
@@ -138,10 +138,6 @@ Route::middleware(['auth:applicant', 'session-timeout:applicant', 'maintenance',
         Route::get('/profile/details', [Applicant\ProfileController::class, 'getProfile']);
         Route::put('/profile/update', [Applicant\ProfileController::class, 'updateProfile']);
         Route::put('/profile/change-password', [Applicant\ProfileController::class, 'changePassword']);
-
-        // Session Inactivity Timeout
-        Route::get('/session/status', [SessionTimeoutController::class, 'status']);
-        Route::post('/session/activity', [SessionTimeoutController::class, 'activity']);
 
         // Programs
         Route::get('/programs', [Applicant\ProgramsController::class, 'index']);
