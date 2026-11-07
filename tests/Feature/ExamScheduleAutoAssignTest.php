@@ -98,6 +98,28 @@ class ExamScheduleAutoAssignTest extends TestCase
         $this->assertSame('scheduled', $fresh->exam_status);
     }
 
+    public function test_auto_assign_includes_schedules_dated_today(): void
+    {
+        $applicant = $this->makeApplicant();
+        $schedule = $this->makeSchedule(['date' => now()->toDateString()]);
+
+        $this->autoAssign()
+            ->assertStatus(200)
+            ->assertJson(['message' => 'Successfully assigned 1 applicants.']);
+
+        $this->assertSame($schedule->id, $applicant->fresh()->schedule_id);
+    }
+
+    public function test_auto_assign_skips_past_dated_schedules(): void
+    {
+        $this->makeApplicant();
+        $this->makeSchedule(['date' => now()->subDay()->toDateString()]);
+
+        $this->autoAssign()
+            ->assertStatus(422)
+            ->assertJson(['message' => 'No available schedules with capacity.']);
+    }
+
     public function test_applicants_of_other_programs_and_statuses_are_skipped(): void
     {
         $otherProgram = Program::where('initials', 'STE')->firstOrFail();

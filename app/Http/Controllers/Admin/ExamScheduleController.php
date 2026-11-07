@@ -297,7 +297,7 @@ class ExamScheduleController extends Controller
                 ->get();
 
             $availableSchedules = ExamSchedule::where('program_id', $programId)
-                ->where('date', '>=', now())
+                ->whereDate('date', '>=', today())
                 ->active()
                 ->forSchoolYear($schoolYearId)
                 ->lockForUpdate()
