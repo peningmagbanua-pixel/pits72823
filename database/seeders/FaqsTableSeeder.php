@@ -16,17 +16,17 @@ class FaqsTableSeeder extends Seeder
         $faqs = [
             [
                 'question' => 'What are the requirements for enrollment?',
-                'answer' => 'The general requirements include: (1) PSA Birth Certificate, (2) Grade 10 or 12 Report Card (SF9), (3) Certificate of Good Moral Character, (4) 2x2 ID pictures, and (5) Completed Application Form. Additional requirements may vary depending on the program you are applying for.',
+                'answer' => 'The general requirements include: (1) Grade 10 or 12 Report Card (SF9), (2) Certificate of Good Moral Character, and (3) Completed Application Form. Additional requirements may vary depending on the program you are applying for.',
                 'sort_order' => 1,
             ],
             [
                 'question' => 'How do I submit my application form?',
-                'answer' => 'After completing the online application form through this portal, you need to print the form and submit it along with your documentary requirements to the Registrar\'s Office during office hours (Monday to Friday, 8:00 AM to 5:00 PM).',
+                'answer' => 'To submit your application, complete the online application form through this portal and submit it online. Make sure all required fields are filled out accurately before submitting. Your application is sent directly to CNHS, so no printed form or in-person submission is required.',
                 'sort_order' => 2,
             ],
             [
                 'question' => 'When is the deadline for application?',
-                'answer' => 'The application deadline varies per school year. Please check the Announcements section on your Dashboard or contact the Registrar\'s Office for the specific deadline dates for the current academic year.',
+                'answer' => 'The application deadline varies per school year. Please check the Announcements section on your Dashboard or contact CNHS Personnel for the specific deadline dates for the current academic year.',
                 'sort_order' => 3,
             ],
             [
@@ -41,7 +41,7 @@ class FaqsTableSeeder extends Seeder
             ],
             [
                 'question' => 'Can I update my application after submission?',
-                'answer' => 'Once submitted, your application is locked for review. If you need to make changes, please contact the Registrar\'s Office directly or send an email to the admissions team for assistance.',
+                'answer' => 'Once submitted, your application is locked for review. If you need to make changes, please contact CNHS Personnel directly or send an email to the admissions team for assistance.',
                 'sort_order' => 6,
             ],
             [
@@ -56,7 +56,7 @@ class FaqsTableSeeder extends Seeder
             ],
             [
                 'question' => 'Who can I contact for support?',
-                'answer' => 'For any inquiries or concerns, you may visit the Registrar\'s Office at Carranglan National High School during office hours, or contact us via email at cnhs.admissions@deped.gov.ph or call us at (044) 123-4567.',
+                'answer' => 'For any inquiries or concerns, you may visit CNHS Personnel during office hours, or contact us via email at cnhs.admissions@deped.gov.ph or call us at (044) 123-4567.',
                 'sort_order' => 9,
             ],
         ];
